@@ -1,6 +1,6 @@
 // Image service for handling product images
 class ImageService {
-  async selectImage() {
+  async selectImage(): Promise<string | null> {
     if (window.electronAPI) {
       return await window.electronAPI.selectImage();
     }
@@ -8,7 +8,7 @@ class ImageService {
     return null;
   }
 
-  async getImageUrl(filename) {
+  async getImageUrl(filename: string | null | undefined): Promise<string | null> {
     if (!filename) return null;
     
     if (window.electronAPI) {
@@ -23,14 +23,14 @@ class ImageService {
     return null;
   }
 
-  async deleteImage(filename) {
+  async deleteImage(filename: string | null | undefined): Promise<void> {
     if (window.electronAPI && filename) {
       await window.electronAPI.deleteImage(filename);
     }
   }
 
   // Convert file to base64 for preview
-  fileToBase64(file) {
+  fileToBase64(file: File): Promise<string | ArrayBuffer | null> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);

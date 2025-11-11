@@ -1,18 +1,32 @@
 import axios from 'axios';
 import db from './database';
 
-const getApiUrl = () => {
-  return localStorage.getItem('apiUrl') || import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const getApiUrl = (): string => {
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
+  return localStorage.getItem('apiUrl') || envUrl || 'http://localhost:3000/api';
 };
 
+interface SyncQueueItem {
+  id: number;
+  table_name: string;
+  record_id: string;
+  operation: 'create' | 'update' | 'delete';
+  data: string;
+  synced: number;
+  created_at?: string;
+}
+
 class SyncService {
+  private isOnline: boolean;
+  private syncInterval: NodeJS.Timeout | null;
+
   constructor() {
     this.isOnline = navigator.onLine;
     this.syncInterval = null;
     this.setupEventListeners();
   }
 
-  setupEventListeners() {
+  private setupEventListeners(): void {
     if (typeof window !== 'undefined') {
       if (window.electronAPI && typeof window.electronAPI.onOnline === 'function') {
         window.electronAPI.onOnline(() => {
@@ -36,7 +50,7 @@ class SyncService {
     }
   }
 
-  startAutoSync(intervalMs = 30000) {
+  startAutoSync(intervalMs: number = 30000): void {
     if (this.syncInterval) {
       clearInterval(this.syncInterval);
     }
@@ -53,21 +67,21 @@ class SyncService {
     }
   }
 
-  stopAutoSync() {
+  stopAutoSync(): void {
     if (this.syncInterval) {
       clearInterval(this.syncInterval);
       this.syncInterval = null;
     }
   }
 
-  async sync() {
+  async sync(): Promise<void> {
     if (!this.isOnline) {
       console.log('Offline - skipping sync');
       return;
     }
 
     try {
-      const queue = await db.getSyncQueue();
+      const queue = await db.getSyncQueue() as SyncQueueItem[];
       
       if (queue.length === 0) {
         console.log('No items to sync');
@@ -108,7 +122,7 @@ class SyncService {
     }
   }
 
-  async syncCreate(tableName, recordId, data) {
+  private async syncCreate(tableName: string, recordId: string, data: any): Promise<void> {
     const endpoint = this.getEndpoint(tableName);
     if (!endpoint) return;
 
@@ -118,7 +132,7 @@ class SyncService {
         id: recordId,
         local_id: recordId
       });
-    } catch (error) {
+    } catch (error: any) {
       if (error.response?.status === 409) {
         // Record already exists, try update instead
         await this.syncUpdate(tableName, recordId, data);
@@ -128,7 +142,7 @@ class SyncService {
     }
   }
 
-  async syncUpdate(tableName, recordId, data) {
+  private async syncUpdate(tableName: string, recordId: string, data: any): Promise<void> {
     const endpoint = this.getEndpoint(tableName);
     if (!endpoint) return;
 
@@ -138,20 +152,20 @@ class SyncService {
     });
   }
 
-  async syncDelete(tableName, recordId) {
+  private async syncDelete(tableName: string, recordId: string): Promise<void> {
     const endpoint = this.getEndpoint(tableName);
     if (!endpoint) return;
 
     await axios.delete(`${getApiUrl()}${endpoint}/${recordId}`);
   }
 
-  async markRecordSynced(tableName, recordId) {
+  private async markRecordSynced(tableName: string, recordId: string): Promise<void> {
     const sql = `UPDATE ${tableName} SET synced = 1 WHERE id = ?`;
     await db.query(sql, [recordId]);
   }
 
-  getEndpoint(tableName) {
-    const endpoints = {
+  private getEndpoint(tableName: string): string | null {
+    const endpoints: Record<string, string> = {
       'products': '/products',
       'customers': '/customers',
       'sales': '/sales',
@@ -161,7 +175,7 @@ class SyncService {
     return endpoints[tableName] || null;
   }
 
-  async pullFromServer() {
+  async pullFromServer(): Promise<void> {
     if (!this.isOnline) {
       console.log('Offline - cannot pull from server');
       return;
@@ -176,7 +190,7 @@ class SyncService {
         const existing = await db.getProduct(product.id);
         if (!existing) {
           await db.createProduct(product);
-        } else if (new Date(product.updated_at) > new Date(existing.updated_at)) {
+        } else if (product.updated_at && existing.updated_at && new Date(product.updated_at) > new Date(existing.updated_at)) {
           await db.updateProduct(product.id, product);
         }
       }
@@ -189,7 +203,7 @@ class SyncService {
         const existing = await db.getCustomer(customer.id);
         if (!existing) {
           await db.createCustomer(customer);
-        } else if (new Date(customer.updated_at) > new Date(existing.updated_at)) {
+        } else if (customer.updated_at && existing.updated_at && new Date(customer.updated_at) > new Date(existing.updated_at)) {
           await db.updateCustomer(customer.id, customer);
         }
       }

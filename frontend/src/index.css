@@ -20,3 +20,7 @@ body {
   height: 100vh;
 }
 
+/* Ant Design customizations */
+.ant-layout {
+  min-height: 100vh;
+}
