@@ -31,7 +31,7 @@
     "name": "POS System",
     "email": "support@pos-system.com"
   },
-  "homepage": "https://github.com/your-username/pos-system",
+  "homepage": "https://github.com/azeemmirza01/pos-system",
   "license": "MIT",
   "devDependencies": {
     "@electron/rebuild": "^3.7.2",
