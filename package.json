@@ -1,0 +1,137 @@
+{
+  "name": "pos-system",
+  "version": "1.0.0",
+  "description": "Offline-First POS System",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:react\" \"npm run dev:electron\" \"npm run dev:server\"",
+    "dev:react": "cd frontend && npm run dev",
+    "dev:electron": "wait-on http://localhost:5173 && electron .",
+    "dev:server": "cd backend && npm run dev",
+    "build": "npm run build:react && npm run build:electron",
+    "build:react": "cd frontend && npm run build",
+    "build:electron": "electron-builder",
+    "build:mac": "npm run build:react && electron-builder --mac",
+    "build:win": "npm run build:react && electron-builder --win",
+    "build:linux": "npm run build:react && electron-builder --linux",
+    "build:all": "npm run build:react && electron-builder --mac --win --linux",
+    "start": "electron .",
+    "install:all": "npm install --include=dev && cd frontend && npm install && cd ../backend && npm install && npm run rebuild",
+    "install:dev": "npm install --include=dev",
+    "rebuild": "npx @electron/rebuild --version=27.0.0 -f -w better-sqlite3",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [
+    "pos",
+    "electron",
+    "react",
+    "offline-first"
+  ],
+  "author": {
+    "name": "POS System",
+    "email": "support@pos-system.com"
+  },
+  "homepage": "https://github.com/your-username/pos-system",
+  "license": "MIT",
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.2",
+    "concurrently": "^8.2.2",
+    "electron": "^27.3.11",
+    "electron-builder": "^24.13.3",
+    "wait-on": "^7.2.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.2.2",
+    "electron-updater": "^6.1.4"
+  },
+  "build": {
+    "appId": "com.pos.system",
+    "productName": "POS System",
+    "copyright": "Copyright © 2024",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "frontend/dist/**/*",
+      "backend/**/*",
+      "package.json",
+      "!backend/node_modules/**/*",
+      "!frontend/node_modules/**/*",
+      "!**/*.md",
+      "!**/.*",
+      "!**/node_modules/@types/**/*",
+      "!**/node_modules/.cache/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": [
+          "**/*",
+          "!node_modules/**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        }
+      ],
+      "publisherName": "POS System"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        }
+      ],
+      "category": "Office",
+      "maintainer": "POS System <support@pos-system.com>"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "POS System"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 410,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 130,
+          "y": 150,
+          "type": "file"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      }
+    },
+    "publish": null
+  }
+}
