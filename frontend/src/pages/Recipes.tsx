@@ -22,11 +22,10 @@ export default function Recipes() {
   const [recipeCosts, setRecipeCosts] = useState<Record<string, number>>({});
   const [form] = Form.useForm();
 
+  // Load data on mount and when outlet/online status changes
   useEffect(() => {
-    if (isOnline) {
-      loadRecipes();
-      loadIngredients();
-    }
+    loadRecipes();
+    loadIngredients();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentOutlet, isOnline]);
 
@@ -36,6 +35,8 @@ export default function Recipes() {
         const response = await axios.get(`${API_BASE_URL}/recipes`);
         const recipesData = response.data || [];
         setRecipes(recipesData);
+        // Cache for offline use
+        localStorage.setItem('cached_recipes', JSON.stringify(recipesData));
         
         // Load costs for all recipes
         const costs: Record<string, number> = {};
@@ -49,11 +50,28 @@ export default function Recipes() {
           }
         }
         setRecipeCosts(costs);
+      } else {
+        // Offline: try to load from local storage or show empty state
+        const cachedRecipes = localStorage.getItem('cached_recipes');
+        if (cachedRecipes) {
+          try {
+            const recipesData = JSON.parse(cachedRecipes);
+            setRecipes(recipesData);
+          } catch (e) {
+            console.warn('Error parsing cached recipes:', e);
+            setRecipes([]);
+          }
+        } else {
+          setRecipes([]);
+        }
       }
     } catch (error: any) {
       console.error('Error loading recipes:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Error loading recipes';
-      message.error(errorMessage);
+      // Only show error message if online (offline errors are expected)
+      if (isOnline) {
+        const errorMessage = error.response?.data?.error || error.message || 'Error loading recipes';
+        message.error(errorMessage);
+      }
       setRecipes([]);
     }
   };
@@ -62,10 +80,31 @@ export default function Recipes() {
     try {
       if (isOnline) {
         const response = await axios.get(`${API_BASE_URL}/ingredients`);
-        setIngredients(response.data);
+        const ingredientsData = response.data || [];
+        setIngredients(ingredientsData);
+        // Cache for offline use
+        localStorage.setItem('cached_ingredients', JSON.stringify(ingredientsData));
+      } else {
+        // Offline: try to load from cache
+        const cachedIngredients = localStorage.getItem('cached_ingredients');
+        if (cachedIngredients) {
+          try {
+            const ingredientsData = JSON.parse(cachedIngredients);
+            setIngredients(ingredientsData);
+          } catch (e) {
+            console.warn('Error parsing cached ingredients:', e);
+            setIngredients([]);
+          }
+        } else {
+          setIngredients([]);
+        }
       }
     } catch (error) {
       console.error('Error loading ingredients:', error);
+      // Only show error if online
+      if (isOnline) {
+        message.error('Error loading ingredients');
+      }
     }
   };
 
@@ -116,6 +155,11 @@ export default function Recipes() {
         }
         setIsModalVisible(false);
         form.resetFields();
+        // Cache updated recipes
+        const updatedRecipes = editingRecipe 
+          ? recipes.map(r => r.id === editingRecipe.id ? { ...editingRecipe, ...data } : r)
+          : [...recipes, { ...data, id: Date.now().toString() }];
+        localStorage.setItem('cached_recipes', JSON.stringify(updatedRecipes));
         loadRecipes();
       } else {
         message.warning('You are offline. Please connect to the internet to save recipes.');

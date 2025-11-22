@@ -10,19 +10,30 @@ class LocalDatabase {
       throw new Error('Electron app must be ready before creating database');
     }
     
-    const userDataPath = app.getPath('userData');
-    const dbPath = path.join(userDataPath, 'pos.db');
-    
-    // Ensure directory exists
-    if (!fs.existsSync(userDataPath)) {
-      fs.mkdirSync(userDataPath, { recursive: true });
+    try {
+      const userDataPath = app.getPath('userData');
+      const dbPath = path.join(userDataPath, 'pos.db');
+      
+      // Ensure directory exists
+      if (!fs.existsSync(userDataPath)) {
+        fs.mkdirSync(userDataPath, { recursive: true });
+      }
+      
+      this.db = new Database(dbPath);
+      this.db.pragma('journal_mode = WAL');
+    } catch (error) {
+      console.error('Failed to initialize SQLite database:', error);
+      // Set db to null so handlers know it's not available
+      this.db = null;
+      throw error;
     }
-    
-    this.db = new Database(dbPath);
-    this.db.pragma('journal_mode = WAL');
   }
 
   initialize() {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+    
     // Products table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS products (
@@ -125,46 +136,59 @@ class LocalDatabase {
   }
 
   query(sql, params = []) {
+    if (!this.db) {
+      return null;
+    }
     try {
       const stmt = this.db.prepare(sql);
       return stmt.run(params);
     } catch (error) {
       console.error('Database query error:', error);
-      throw error;
+      return null;
     }
   }
 
   exec(sql) {
+    if (!this.db) {
+      return;
+    }
     try {
       return this.db.exec(sql);
     } catch (error) {
       console.error('Database exec error:', error);
-      throw error;
     }
   }
 
   get(sql, params = []) {
+    if (!this.db) {
+      return null;
+    }
     try {
       const stmt = this.db.prepare(sql);
       return stmt.get(params);
     } catch (error) {
       console.error('Database get error:', error);
-      throw error;
+      return null;
     }
   }
 
   all(sql, params = []) {
+    if (!this.db) {
+      return [];
+    }
     try {
       const stmt = this.db.prepare(sql);
       return stmt.all(params);
     } catch (error) {
       console.error('Database all error:', error);
-      throw error;
+      return [];
     }
   }
 
   close() {
-    this.db.close();
+    if (this.db) {
+      this.db.close();
+    }
   }
 }
 

@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, App as AntApp } from 'antd';
 import Layout from './components/Layout';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -89,13 +89,16 @@ const theme = {
 };
 
 function App() {
-  console.log('[App] Component rendering...');
-  
   return (
     <ErrorBoundary>
       <ConfigProvider theme={theme}>
         <AntApp>
-          <Router>
+          <Router
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
             <Routes>
               <Route path="/" element={<Layout />}>
                 <Route index element={<Navigate to="/dashboard" replace />} />

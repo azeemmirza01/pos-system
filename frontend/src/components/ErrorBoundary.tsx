@@ -21,7 +21,20 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Uncaught error:', error, errorInfo);
+    console.error('[ErrorBoundary] ========== ERROR CAUGHT ==========');
+    console.error('[ErrorBoundary] Error:', error);
+    console.error('[ErrorBoundary] Error message:', error.message);
+    console.error('[ErrorBoundary] Error stack:', error.stack);
+    console.error('[ErrorBoundary] Error info:', errorInfo);
+    console.error('[ErrorBoundary] Component stack:', errorInfo.componentStack);
+    
+    // Also show error on screen immediately
+    setTimeout(() => {
+      const errorDiv = document.createElement('div');
+      errorDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #ff4d4f; color: white; padding: 20px; z-index: 999999; font-family: monospace;';
+      errorDiv.innerHTML = `<strong>ERROR:</strong> ${error.message}<br><small>${error.stack?.split('\n')[0]}</small>`;
+      document.body.appendChild(errorDiv);
+    }, 100);
   }
 
   public render() {

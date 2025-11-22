@@ -125,15 +125,12 @@ const menuItems: MenuItem[] = [
 ];
 
 export default function Layout() {
-  console.log('[Layout] Component rendering...');
-  
   const [collapsed, setCollapsed] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Hooks must be called unconditionally - wrap in try-catch at usage level
   // Use selectors to ensure reactivity
   const isOnline = usePosStore((state) => state.isOnline);
   const initialize = usePosStore((state) => state.initialize);
@@ -152,7 +149,6 @@ export default function Layout() {
   // Handle currency change
   const handleCurrencyChange = useCallback((value: string) => {
     const newCurrency = (value || 'USD') as Currency;
-    console.log('[Layout] onChange triggered, new value:', newCurrency);
     
     // Update local state immediately for UI responsiveness
     setLocalCurrency(newCurrency);
@@ -162,9 +158,7 @@ export default function Layout() {
       const store = usePosStore.getState();
       if (store.setCurrency && typeof store.setCurrency === 'function') {
         store.setCurrency(newCurrency);
-        console.log('[Layout] Currency updated in store successfully');
       } else {
-        console.warn('[Layout] setCurrency not available, using fallback');
         // Fallback: manually update currency
         usePosStore.setState({ currency: newCurrency });
         if (typeof window !== 'undefined' && window.localStorage) {
@@ -172,7 +166,6 @@ export default function Layout() {
         }
       }
     } catch (error) {
-      console.error('[Layout] Error updating currency:', error);
       // Fallback: manually update
       usePosStore.setState({ currency: newCurrency });
       if (typeof window !== 'undefined' && window.localStorage) {
@@ -185,27 +178,54 @@ export default function Layout() {
   } = theme.useToken();
 
   useEffect(() => {
+    let mounted = true;
+    
     const init = async () => {
       try {
         setIsInitializing(true);
         setInitError(null);
-        await initialize();
+        
+        // Add timeout to prevent hanging - show UI after 3 seconds max
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => {
+            if (mounted) {
+              reject(new Error('Initialization timeout - continuing anyway'));
+            }
+          }, 3000);
+        });
+        
+        try {
+          await Promise.race([initialize(), timeoutPromise]);
+        } catch (timeoutError) {
+          // Timeout is OK - we'll continue anyway
+        }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error('Failed to initialize app:', error);
         setInitError(errorMessage);
       } finally {
-        setIsInitializing(false);
+        if (mounted) {
+          setIsInitializing(false);
+        }
       }
     };
+    
+    // Start initialization but don't block
     init();
+    
+    // Also set a hard timeout to ensure UI shows
+    const hardTimeout = setTimeout(() => {
+      if (mounted) {
+        setIsInitializing(false);
+      }
+    }, 5000);
+    
+    return () => {
+      mounted = false;
+      clearTimeout(hardTimeout);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Debug: Track currency changes
-  useEffect(() => {
-    console.log('[Layout] Currency changed to:', currency);
-  }, [currency]);
 
 
   const handleMenuClick = ({ key }: { key: string }) => {
@@ -236,10 +256,14 @@ export default function Layout() {
         alignItems: 'center', 
         height: '100vh',
         flexDirection: 'column',
-        gap: 16
+        gap: 16,
+        backgroundColor: '#f5f7fa'
       }}>
         <Spin size="large" />
         <Typography.Text type="secondary">Initializing POS System...</Typography.Text>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          This should only take a few seconds...
+        </Typography.Text>
       </div>
     );
   }

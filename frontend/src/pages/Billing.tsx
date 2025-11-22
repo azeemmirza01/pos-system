@@ -551,7 +551,7 @@ export default function Billing() {
                         border:
                           product.stock <= 0 ? "1px solid #ff4d4f" : undefined,
                       }}
-                      bodyStyle={{ padding: 12 }}
+                      styles={{ body: { padding: 12 } }}
                       onClick={() => handleAddToCart(product)}
                       cover={
                         <div

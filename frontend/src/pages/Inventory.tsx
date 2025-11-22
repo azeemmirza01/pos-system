@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, Table, Button, Modal, Form, Input, InputNumber, Select, Space, Typography, Tag, message, Alert } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, WarningOutlined } from '@ant-design/icons';
 import usePosStore from '../stores/usePosStore';
-import type { Ingredient, Waste } from '../types';
+import type { Ingredient } from '../types';
 import axios from 'axios';
 import { formatCurrency } from '../utils/currency';
 
@@ -21,10 +21,9 @@ export default function Inventory() {
   const [form] = Form.useForm();
   const [wasteForm] = Form.useForm();
 
+  // Load data on mount and when outlet/online status changes
   useEffect(() => {
-    if (isOnline) {
-      loadIngredients();
-    }
+    loadIngredients();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentOutlet, isOnline]);
 
@@ -32,12 +31,37 @@ export default function Inventory() {
     try {
       if (isOnline) {
         const response = await axios.get(`${API_BASE_URL}/ingredients${currentOutlet ? `?outlet_id=${currentOutlet.id}` : ''}`);
-        setIngredients(response.data);
-        const lowStock = response.data.filter((ing: Ingredient) => ing.current_stock <= ing.min_stock);
+        const ingredientsData = response.data || [];
+        setIngredients(ingredientsData);
+        const lowStock = ingredientsData.filter((ing: Ingredient) => ing.current_stock <= ing.min_stock);
         setLowStockItems(lowStock);
+        // Cache for offline use
+        localStorage.setItem('cached_inventory', JSON.stringify(ingredientsData));
+      } else {
+        // Offline: try to load from cache
+        const cachedInventory = localStorage.getItem('cached_inventory');
+        if (cachedInventory) {
+          try {
+            const ingredientsData = JSON.parse(cachedInventory);
+            setIngredients(ingredientsData);
+            const lowStock = ingredientsData.filter((ing: Ingredient) => ing.current_stock <= ing.min_stock);
+            setLowStockItems(lowStock);
+          } catch (e) {
+            console.warn('Error parsing cached inventory:', e);
+            setIngredients([]);
+            setLowStockItems([]);
+          }
+        } else {
+          setIngredients([]);
+          setLowStockItems([]);
+        }
       }
     } catch (error) {
       console.error('Error loading ingredients:', error);
+      // Only show error if online
+      if (isOnline) {
+        message.error('Error loading inventory');
+      }
     }
   };
 
@@ -80,10 +104,19 @@ export default function Inventory() {
           message.success('Ingredient created successfully');
         }
         setIsModalVisible(false);
+        // Cache updated inventory
+        const updatedIngredients = editingIngredient
+          ? ingredients.map(i => i.id === editingIngredient.id ? { ...editingIngredient, ...data } : i)
+          : [...ingredients, { ...data, id: Date.now().toString() }];
+        localStorage.setItem('cached_inventory', JSON.stringify(updatedIngredients));
         loadIngredients();
+      } else {
+        message.warning('You are offline. Please connect to the internet to save inventory.');
       }
     } catch (error) {
-      message.error('Error saving ingredient');
+      if (isOnline) {
+        message.error('Error saving ingredient');
+      }
     }
   };
 

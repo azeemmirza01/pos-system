@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
@@ -7,13 +7,24 @@ const Database = require('./database');
 let mainWindow;
 let db;
 
+// Register custom protocol for secure local file access
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'pos',
+    privileges: {
+      secure: true,
+      standard: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+    },
+  },
+]);
+
 function createWindow() {
   const iconPath = path.join(__dirname, '../assets/icon.png');
   const iconExists = fs.existsSync(iconPath);
   
   const preloadPath = path.join(__dirname, 'preload.js');
-  console.log('Preload path:', preloadPath);
-  console.log('Preload exists:', fs.existsSync(preloadPath));
   
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -22,20 +33,109 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: preloadPath,
-      webSecurity: false // Allow loading local file:// URLs for images
+      webSecurity: true, // Enable web security in both dev and production
+      allowRunningInsecureContent: false,
+      // Enable DevTools in production for debugging (can be disabled later)
+      devTools: true
     },
-    ...(iconExists && { icon: iconPath })
+    ...(iconExists && { icon: iconPath }),
+    show: false // Don't show until ready
   });
   
-  console.log('Window created, IPC handlers should be available');
+  // Set Content Security Policy without unsafe-eval to avoid warnings
+  // Only apply CSP to HTML documents to avoid interfering with Vite dev server
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    const headers = { ...details.responseHeaders };
+    
+    // Only set CSP for HTML documents (main frame)
+    if (details.resourceType === 'mainFrame' || 
+        (details.responseHeaders['content-type'] && 
+         details.responseHeaders['content-type'][0]?.includes('text/html'))) {
+      // Strict CSP without unsafe-eval - works in both dev and production
+      // Vite HMR uses WebSocket (ws:) and inline scripts (unsafe-inline), which are allowed
+      headers['Content-Security-Policy'] = [
+        "default-src 'self' 'unsafe-inline' data: blob: pos:; " +
+        "img-src 'self' data: blob: pos: http: https:; " +
+        "script-src 'self' 'unsafe-inline'; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "font-src 'self' data:; " +
+        "connect-src 'self' http: https: ws: wss:; " +
+        "worker-src 'self' blob:"
+      ];
+    }
+    
+    callback({ responseHeaders: headers });
+  });
+  
+  // Show window when ready to prevent white screen flash
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+  });
+
+  // Error handling for failed page loads
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('Failed to load:', errorCode, errorDescription, validatedURL);
+  });
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
-    // Automatically open DevTools in development
-    mainWindow.webContents.openDevTools();
+    // DevTools can be opened manually via menu (Cmd+Option+I / Ctrl+Shift+I)
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../frontend/dist/index.html'));
-    // In production, allow opening DevTools with Cmd+Option+I (Mac) or Ctrl+Shift+I (Windows/Linux)
+    // In production, handle path correctly for packaged apps
+    let indexPath;
+    
+    // Get the app path (works for both packaged and unpackaged)
+    const appPath = app.getAppPath();
+    
+    if (app.isPackaged) {
+      // When packaged, files are in different locations depending on platform
+      const possiblePaths = [
+        path.join(appPath, 'frontend', 'dist', 'index.html'),
+        path.join(process.resourcesPath || appPath, 'app', 'frontend', 'dist', 'index.html'),
+        path.join(__dirname, '..', 'frontend', 'dist', 'index.html'),
+        path.join(__dirname, 'frontend', 'dist', 'index.html'),
+        path.join(process.resourcesPath || '', 'app', 'frontend', 'dist', 'index.html'),
+      ];
+      
+      // Find the first path that exists
+      indexPath = possiblePaths.find(p => fs.existsSync(p));
+      
+      if (!indexPath) {
+        indexPath = path.join(appPath, 'frontend', 'dist', 'index.html');
+      }
+    } else {
+      // Development build (not packaged)
+      indexPath = path.join(__dirname, '..', 'frontend', 'dist', 'index.html');
+    }
+    
+    if (fs.existsSync(indexPath)) {
+      mainWindow.loadFile(indexPath).catch(err => {
+        console.error('Error loading file:', err);
+        // Try loading as URL as fallback
+        const fileUrl = path.isAbsolute(indexPath) 
+          ? `file://${indexPath}` 
+          : `file://${path.resolve(indexPath)}`;
+        mainWindow.loadURL(fileUrl).catch(urlErr => {
+          console.error('Error loading URL:', urlErr);
+        });
+      });
+    } else {
+      console.error('index.html not found at:', indexPath);
+      // DevTools can be opened manually via menu if needed for debugging
+      mainWindow.webContents.once('dom-ready', () => {
+        mainWindow.webContents.executeJavaScript(`
+          document.body.innerHTML = '<div style="padding: 40px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; background: #f5f5f5; min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+            <div style="background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-width: 600px;">
+              <h1 style="color: #ff4d4f; margin: 0 0 20px 0;">⚠️ Application Error</h1>
+              <p style="color: #666; margin: 0 0 10px 0;"><strong>Files not found</strong></p>
+              <p style="color: #999; font-size: 12px; margin: 20px 0;">Expected: ${indexPath}</p>
+              <p style="color: #666; margin: 20px 0 0 0;">Please check the console (DevTools) for details.</p>
+              <p style="color: #999; font-size: 12px; margin: 10px 0 0 0;">If this persists, please reinstall the application.</p>
+            </div>
+          </div>';
+        `);
+      });
+    }
   }
 
   mainWindow.on('closed', () => {
@@ -46,36 +146,59 @@ function createWindow() {
 // IPC handlers for database operations
 ipcMain.handle('db:query', async (event, query, params) => {
   if (!db) {
-    throw new Error('Database not initialized');
+    console.warn('Database not initialized, returning empty result');
+    return [];
   }
-  const result = db.query(query, params);
-  // Serialize result for IPC
-  return JSON.parse(JSON.stringify(result));
+  try {
+    const result = db.query(query, params);
+    // Serialize result for IPC
+    return JSON.parse(JSON.stringify(result));
+  } catch (error) {
+    console.error('Database query error:', error);
+    return [];
+  }
 });
 
 ipcMain.handle('db:exec', async (event, query, params) => {
   if (!db) {
-    throw new Error('Database not initialized');
+    console.warn('Database not initialized, skipping exec');
+    return;
   }
-  return db.exec(query, params);
+  try {
+    return db.exec(query, params);
+  } catch (error) {
+    console.error('Database exec error:', error);
+  }
 });
 
 ipcMain.handle('db:get', async (event, query, params) => {
   if (!db) {
-    throw new Error('Database not initialized');
+    console.warn('Database not initialized, returning null');
+    return null;
   }
-  const result = db.get(query, params);
-  // Serialize result for IPC
-  return result ? JSON.parse(JSON.stringify(result)) : null;
+  try {
+    const result = db.get(query, params);
+    // Serialize result for IPC
+    return result ? JSON.parse(JSON.stringify(result)) : null;
+  } catch (error) {
+    console.error('Database get error:', error);
+    return null;
+  }
 });
 
 ipcMain.handle('db:all', async (event, query, params) => {
   if (!db) {
-    throw new Error('Database not initialized');
+    console.warn('Database not initialized, returning empty array');
+    return [];
   }
-  const result = db.all(query, params);
-  // Serialize result for IPC
-  return JSON.parse(JSON.stringify(result));
+  try {
+    const result = db.all(query, params);
+    // Serialize result for IPC
+    return JSON.parse(JSON.stringify(result));
+  } catch (error) {
+    console.error('Database all error:', error);
+    return [];
+  }
 });
 
 ipcMain.handle('app:getVersion', () => {
@@ -185,12 +308,9 @@ ipcMain.handle('image:getPath', async (event, filename) => {
     const imagePath = path.join(userDataPath, 'images', filename);
     
     if (fs.existsSync(imagePath)) {
-      // Return file:// URL for rendering in Electron
-      // On Windows, we need to handle path separators differently
-      const normalizedPath = process.platform === 'win32' 
-        ? imagePath.replace(/\\/g, '/')
-        : imagePath;
-      return `file://${normalizedPath}`;
+      // Return pos:// protocol URL for secure local file access
+      // This works with webSecurity enabled
+      return `pos://images/${filename}`;
     }
     
     return null;
@@ -215,8 +335,7 @@ ipcMain.handle('image:delete', async (event, filename) => {
   }
 });
 
-// Verify handlers are registered
-console.log('IPC handlers registered');
+// IPC handlers registered
 
 // Create application menu with DevTools option
 function createMenu() {
@@ -269,8 +388,31 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+// Register custom protocol handler for secure local file access
+function registerProtocol() {
+  protocol.registerFileProtocol('pos', (request, callback) => {
+    const url = request.url.replace('pos://', '');
+    
+    // Handle image requests
+    if (url.startsWith('images/')) {
+      const filename = url.replace('images/', '');
+      const userDataPath = app.getPath('userData');
+      const imagePath = path.join(userDataPath, 'images', filename);
+      
+      if (fs.existsSync(imagePath)) {
+        callback({ path: imagePath });
+      } else {
+        callback({ error: -6 }); // FILE_NOT_FOUND
+      }
+    } else {
+      callback({ error: -6 }); // FILE_NOT_FOUND
+    }
+  });
+}
+
 app.whenReady().then(() => {
-  console.log('App is ready');
+  // Register custom protocol before creating window
+  registerProtocol();
   
   // Create application menu
   createMenu();
@@ -279,11 +421,10 @@ app.whenReady().then(() => {
     // Initialize database
     db = new Database();
     db.initialize();
-    console.log('Database initialized successfully');
   } catch (error) {
     console.error('Database initialization error:', error);
-    console.error('Error details:', error.message);
-    console.error('Stack:', error.stack);
+    // App can work without local database - data will sync to backend when online
+    db = null;
   }
   
   createWindow();

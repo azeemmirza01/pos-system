@@ -78,18 +78,20 @@ const usePosStore = create<PosStore>((set, get) => {
         // Don't fail initialization if sync service fails
       }
       
-      // Load initial data (don't fail if these fail)
-      try {
-      await get().loadProducts();
-      } catch (error) {
-        console.warn('Failed to load products:', error);
-      }
+      // Load initial data (don't fail if these fail, and don't block)
+      // Run these in background - don't await
+      Promise.all([
+        get().loadProducts().catch(error => {
+          console.warn('[Store] Failed to load products:', error);
+        }),
+        get().loadCustomers().catch(error => {
+          console.warn('[Store] Failed to load customers:', error);
+        })
+      ]).catch(error => {
+        console.warn('[Store] Error loading initial data:', error);
+      });
       
-      try {
-      await get().loadCustomers();
-      } catch (error) {
-        console.warn('Failed to load customers:', error);
-      }
+      console.log('[Store] Initialization complete (data loading in background)');
       
       // Set up online/offline listeners
       if (typeof window !== 'undefined') {

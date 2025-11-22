@@ -166,7 +166,7 @@ export default function Dashboard() {
                 transition: 'all 0.3s ease',
                 cursor: 'pointer',
               }}
-              bodyStyle={{ padding: 32 }}
+              styles={{ body: { padding: 32 } }}
               onClick={() => navigate('/billing')}
             >
               <ShoppingCartOutlined style={{ fontSize: 56, color: '#1890ff', marginBottom: 16 }} />
@@ -188,7 +188,7 @@ export default function Dashboard() {
                 transition: 'all 0.3s ease',
                 cursor: 'pointer',
               }}
-              bodyStyle={{ padding: 32 }}
+              styles={{ body: { padding: 32 } }}
               onClick={() => navigate('/products')}
             >
               <ShopOutlined style={{ fontSize: 56, color: '#722ed1', marginBottom: 16 }} />
@@ -210,7 +210,7 @@ export default function Dashboard() {
                 transition: 'all 0.3s ease',
                 cursor: 'pointer',
               }}
-              bodyStyle={{ padding: 32 }}
+              styles={{ body: { padding: 32 } }}
               onClick={() => navigate('/customers')}
             >
               <TeamOutlined style={{ fontSize: 56, color: '#fa8c16', marginBottom: 16 }} />

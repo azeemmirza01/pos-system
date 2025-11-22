@@ -16,7 +16,8 @@ class ImageService {
     }
     
     // Fallback: if it's already a URL, return it
-    if (filename.startsWith('http://') || filename.startsWith('https://') || filename.startsWith('file://')) {
+    if (filename.startsWith('http://') || filename.startsWith('https://') || 
+        filename.startsWith('file://') || filename.startsWith('pos://')) {
       return filename;
     }
     

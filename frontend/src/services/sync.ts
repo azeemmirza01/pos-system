@@ -97,7 +97,7 @@ class SyncService {
       const queue = await db.getSyncQueue() as SyncQueueItem[];
       
       if (queue.length === 0) {
-        console.log('No items to sync');
+        // No items to sync - silent return
         return;
       }
 

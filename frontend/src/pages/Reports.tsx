@@ -159,7 +159,7 @@ export default function Reports() {
     <div>
       <Card
         style={{ marginBottom: 16, borderRadius: 12 }}
-        bodyStyle={{ padding: '16px 24px' }}
+        styles={{ body: { padding: '16px 24px' } }}
       >
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <RangePicker
