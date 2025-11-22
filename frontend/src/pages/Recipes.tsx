@@ -31,10 +31,13 @@ export default function Recipes() {
     try {
       if (isOnline) {
         const response = await axios.get(`${API_BASE_URL}/recipes`);
-        setRecipes(response.data);
+        setRecipes(response.data || []);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading recipes:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error loading recipes';
+      message.error(errorMessage);
+      setRecipes([]);
     }
   };
 
@@ -76,10 +79,17 @@ export default function Recipes() {
   const handleSubmit = async (values: any) => {
     try {
       if (isOnline) {
+        // Ensure ingredients array is properly formatted
+        const ingredients = (values.ingredients || []).filter((ing: any) => 
+          ing && ing.ingredient_id && ing.quantity && ing.unit
+        );
+        
         const data = {
           ...values,
+          ingredients: ingredients,
           outlet_id: currentOutlet?.id
         };
+        
         if (editingRecipe) {
           await axios.put(`${API_BASE_URL}/recipes/${editingRecipe.id}`, data);
           message.success('Recipe updated successfully');
@@ -88,10 +98,15 @@ export default function Recipes() {
           message.success('Recipe created successfully');
         }
         setIsModalVisible(false);
+        form.resetFields();
         loadRecipes();
+      } else {
+        message.warning('You are offline. Please connect to the internet to save recipes.');
       }
-    } catch (error) {
-      message.error('Error saving recipe');
+    } catch (error: any) {
+      console.error('Error saving recipe:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error saving recipe';
+      message.error(errorMessage);
     }
   };
 
@@ -182,9 +197,9 @@ export default function Recipes() {
             <Input />
           </Form.Item>
           <Form.Item name="product_id" label="Product" rules={[{ required: true }]}>
-            <Select placeholder="Select product">
+            <Select placeholder="Select product" allowClear>
               {products.map(product => (
-                <Option key={product.id} value={product.id}>{product.name}</Option>
+                <Option key={product.id} value={product.id || undefined}>{product.name}</Option>
               ))}
             </Select>
           </Form.Item>
@@ -198,28 +213,25 @@ export default function Recipes() {
             <Form.List name="ingredients">
               {(fields, { add, remove }) => (
                 <>
-                  {fields.map((field, index) => (
+                  {fields.map((field) => (
                     <Space key={field.key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
                       <Form.Item
-                        {...field}
                         name={[field.name, 'ingredient_id']}
                         rules={[{ required: true, message: 'Select ingredient' }]}
                       >
-                        <Select placeholder="Ingredient" style={{ width: 200 }}>
+                        <Select placeholder="Ingredient" style={{ width: 200 }} allowClear>
                           {ingredients.map(ing => (
-                            <Option key={ing.id} value={ing.id}>{ing.name}</Option>
+                            <Option key={ing.id} value={ing.id || undefined}>{ing.name}</Option>
                           ))}
                         </Select>
                       </Form.Item>
                       <Form.Item
-                        {...field}
                         name={[field.name, 'quantity']}
                         rules={[{ required: true, message: 'Enter quantity' }]}
                       >
-                        <InputNumber placeholder="Quantity" min={0} />
+                        <InputNumber placeholder="Quantity" min={0} style={{ width: 120 }} />
                       </Form.Item>
                       <Form.Item
-                        {...field}
                         name={[field.name, 'unit']}
                         rules={[{ required: true, message: 'Enter unit' }]}
                       >

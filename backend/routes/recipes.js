@@ -7,9 +7,10 @@ const Product = require('../models/Product');
 // Get all recipes
 router.get('/', async (req, res) => {
   try {
-    const recipes = await Recipe.find().populate('product_id').sort({ name: 1 });
+    const recipes = await Recipe.find().sort({ name: 1 });
     res.json(recipes);
   } catch (error) {
+    console.error('[Recipes] Error fetching recipes:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -17,12 +18,13 @@ router.get('/', async (req, res) => {
 // Get single recipe
 router.get('/:id', async (req, res) => {
   try {
-    const recipe = await Recipe.findOne({ id: req.params.id }).populate('product_id');
+    const recipe = await Recipe.findOne({ id: req.params.id });
     if (!recipe) {
       return res.status(404).json({ error: 'Recipe not found' });
     }
     res.json(recipe);
   } catch (error) {
+    console.error('[Recipes] Error fetching recipe:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -33,9 +35,32 @@ router.post('/', async (req, res) => {
     const { id, local_id, ...recipeData } = req.body;
     const recipeId = id || local_id || `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
+    // Validate required fields
+    if (!recipeData.name) {
+      return res.status(400).json({ error: 'Recipe name is required' });
+    }
+    if (!recipeData.product_id) {
+      return res.status(400).json({ error: 'Product ID is required' });
+    }
+    if (!recipeData.ingredients || !Array.isArray(recipeData.ingredients) || recipeData.ingredients.length === 0) {
+      return res.status(400).json({ error: 'At least one ingredient is required' });
+    }
+    
+    // Validate ingredients
+    for (const ing of recipeData.ingredients) {
+      if (!ing.ingredient_id || !ing.quantity || !ing.unit) {
+        return res.status(400).json({ error: 'Each ingredient must have ingredient_id, quantity, and unit' });
+      }
+    }
+    
     const recipe = new Recipe({
       id: recipeId,
-      ...recipeData,
+      name: recipeData.name,
+      product_id: recipeData.product_id,
+      ingredients: recipeData.ingredients,
+      instructions: recipeData.instructions || '',
+      preparation_time: recipeData.preparation_time || 0,
+      outlet_id: recipeData.outlet_id || undefined,
       synced: true
     });
     await recipe.save();
@@ -50,7 +75,8 @@ router.post('/', async (req, res) => {
     
     res.status(201).json(recipe);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[Recipes] Error creating recipe:', error);
+    res.status(500).json({ error: error.message || 'Error creating recipe' });
   }
 });
 

@@ -135,7 +135,8 @@ export default function Layout() {
   
   // Hooks must be called unconditionally - wrap in try-catch at usage level
   const storeState = usePosStore();
-  const { isOnline, initialize, cart, currency, setCurrency } = storeState;
+  const { isOnline, initialize, cart, currency } = storeState;
+  const setCurrency = storeState.setCurrency;
   const {
     token: { colorBgContainer },
   } = theme.useToken();
@@ -323,7 +324,13 @@ export default function Layout() {
           <Space>
             <Select
               value={currency}
-              onChange={(value) => setCurrency(value as Currency)}
+              onChange={(value) => {
+                if (setCurrency && typeof setCurrency === 'function') {
+                  setCurrency(value as Currency);
+                } else {
+                  console.warn('[Layout] setCurrency function not available');
+                }
+              }}
               style={{ width: 100 }}
               size="small"
             >

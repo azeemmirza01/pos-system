@@ -633,7 +633,7 @@ export default function Billing() {
                     .includes(input.toLowerCase())
                 }
               >
-                <Option value={null}>Walk-in Customer</Option>
+                <Option value="">Walk-in Customer</Option>
                 {customers.map((customer) => (
                   <Option key={customer.id} value={customer.id}>
                     {customer.name}
@@ -701,10 +701,11 @@ export default function Billing() {
                     placeholder="Select Table"
                     style={{ width: "100%" }}
                     value={selectedTable}
-                    onChange={setSelectedTable}
+                    onChange={(value) => setSelectedTable(value === '' ? null : value)}
                     size="large"
+                    allowClear
                   >
-                    <Option value={null}>No Table</Option>
+                    <Option value="">No Table</Option>
                     {/* Tables will be loaded from store */}
                   </Select>
                 </>
