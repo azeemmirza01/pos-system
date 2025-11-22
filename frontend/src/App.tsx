@@ -18,10 +18,10 @@ import Recipes from './pages/Recipes';
 import Inventory from './pages/Inventory';
 import './index.css';
 
-// Custom Ant Design theme - Vectron Systems exact design
+// Custom Ant Design theme
 const theme = {
   token: {
-    colorPrimary: '#0052a3', // Vectron's primary blue
+    colorPrimary: '#1890ff', // Ant Design default blue
     borderRadius: 8,
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     fontSize: 14,
@@ -46,7 +46,7 @@ const theme = {
       itemBg: 'transparent',
       itemSelectedBg: '#e6f2ff',
       itemHoverBg: '#f0f5ff',
-      itemSelectedColor: '#0052a3',
+      itemSelectedColor: '#1890ff',
       itemColor: '#1a1a1a',
       itemMarginInline: 8,
       itemBorderRadius: 6,

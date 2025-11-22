@@ -237,18 +237,18 @@ export default function Layout() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: collapsed ? 'center' : 'flex-start',
-            color: '#0066cc',
+            color: '#1890ff',
             padding: collapsed ? 0 : '0 16px',
             borderBottom: '1px solid #e8e8e8',
           }}
         >
           {!collapsed && (
-            <Title level={4} style={{ color: '#0052a3', margin: 0, fontWeight: 600, fontSize: 18 }}>
+            <Title level={4} style={{ color: '#1890ff', margin: 0, fontWeight: 600, fontSize: 18 }}>
               POS System
             </Title>
           )}
           {collapsed && (
-            <Title level={4} style={{ color: '#0052a3', margin: 0, fontWeight: 600 }}>
+            <Title level={4} style={{ color: '#1890ff', margin: 0, fontWeight: 600 }}>
               POS
             </Title>
           )}
@@ -279,7 +279,7 @@ export default function Layout() {
           <Badge
             status={isOnline ? 'success' : 'error'}
             text={collapsed ? '' : (isOnline ? 'Online' : 'Offline')}
-            style={{ color: isOnline ? '#0052a3' : '#cf1322', fontWeight: 500 }}
+            style={{ color: isOnline ? '#1890ff' : '#cf1322', fontWeight: 500 }}
           />
         </div>
       </Sider>

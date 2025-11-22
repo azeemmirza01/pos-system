@@ -162,14 +162,14 @@ export default function Dashboard() {
               style={{
                 textAlign: 'center',
                 borderRadius: 12,
-                border: '2px solid #0066cc',
+                border: '2px solid #1890ff',
                 transition: 'all 0.3s ease',
                 cursor: 'pointer',
               }}
               bodyStyle={{ padding: 32 }}
               onClick={() => navigate('/billing')}
             >
-              <ShoppingCartOutlined style={{ fontSize: 56, color: '#0052a3', marginBottom: 16 }} />
+              <ShoppingCartOutlined style={{ fontSize: 56, color: '#1890ff', marginBottom: 16 }} />
               <Title level={4} style={{ margin: 0, fontWeight: 600, color: '#1a1a1a' }}>
                 New Sale
               </Title>

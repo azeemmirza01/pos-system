@@ -119,7 +119,7 @@ export default function Bar() {
                           style={{
                             border: `2px solid ${
                               item.status === 'pending' ? '#ff9800' :
-                              item.status === 'preparing' ? '#2196f3' :
+                              item.status === 'preparing' ? '#1890ff' :
                               '#4caf50'
                             }`,
                             backgroundColor: item.status === 'ready' ? '#e8f5e9' : '#fff'

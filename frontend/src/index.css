@@ -59,18 +59,18 @@ body {
   font-weight: 600;
 }
 
-/* Professional button styles - Vectron style */
+/* Professional button styles */
 .ant-btn-primary {
-  background: #0052a3;
+  background: #1890ff;
   border: none;
-  box-shadow: 0 2px 8px rgba(0, 82, 163, 0.3);
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
   font-weight: 500;
   transition: all 0.3s ease;
 }
 
 .ant-btn-primary:hover {
-  background: #003d7a;
-  box-shadow: 0 4px 12px rgba(0, 82, 163, 0.4);
+  background: #40a9ff;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.4);
   transform: translateY(-1px);
 }
 
@@ -89,12 +89,12 @@ body {
   background: #f5f7fa;
 }
 
-/* Input focus styles - Vectron style */
+/* Input focus styles */
 .ant-input:focus,
 .ant-input-focused,
 .ant-select-focused .ant-select-selector {
-  border-color: #0052a3;
-  box-shadow: 0 0 0 2px rgba(0, 82, 163, 0.1);
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
 }
 
 /* Professional page headers */
