@@ -117,6 +117,44 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Calculate recipe cost
+router.get('/:id/cost', async (req, res) => {
+  try {
+    const recipe = await Recipe.findOne({ id: req.params.id });
+    if (!recipe) {
+      return res.status(404).json({ error: 'Recipe not found' });
+    }
+    
+    let totalCost = 0;
+    const costBreakdown = [];
+    
+    for (const ingredient of recipe.ingredients) {
+      const ingredientDoc = await Ingredient.findOne({ id: ingredient.ingredient_id });
+      if (ingredientDoc && ingredientDoc.cost_per_unit) {
+        const ingredientCost = ingredient.quantity * ingredientDoc.cost_per_unit;
+        totalCost += ingredientCost;
+        costBreakdown.push({
+          ingredient_id: ingredient.ingredient_id,
+          ingredient_name: ingredientDoc.name,
+          quantity: ingredient.quantity,
+          unit: ingredient.unit,
+          cost_per_unit: ingredientDoc.cost_per_unit,
+          total_cost: ingredientCost
+        });
+      }
+    }
+    
+    res.json({
+      recipe_id: recipe.id,
+      recipe_name: recipe.name,
+      total_cost: totalCost,
+      cost_breakdown: costBreakdown
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Deduct ingredients when recipe is used
 router.post('/:id/deduct-ingredients', async (req, res) => {
   try {

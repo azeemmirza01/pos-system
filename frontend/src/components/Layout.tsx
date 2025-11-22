@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Layout as AntLayout,
@@ -134,9 +134,52 @@ export default function Layout() {
   const location = useLocation();
   
   // Hooks must be called unconditionally - wrap in try-catch at usage level
-  const storeState = usePosStore();
-  const { isOnline, initialize, cart, currency } = storeState;
-  const setCurrency = storeState.setCurrency;
+  // Use selectors to ensure reactivity
+  const isOnline = usePosStore((state) => state.isOnline);
+  const initialize = usePosStore((state) => state.initialize);
+  const cart = usePosStore((state) => state.cart);
+  const storeCurrency = usePosStore((state) => state.currency);
+  const currency = storeCurrency || 'USD';
+  
+  // Local state to ensure Select component updates immediately
+  const [localCurrency, setLocalCurrency] = useState(currency);
+  
+  // Sync local state with store
+  useEffect(() => {
+    setLocalCurrency(currency);
+  }, [currency]);
+
+  // Handle currency change
+  const handleCurrencyChange = useCallback((value: string) => {
+    const newCurrency = (value || 'USD') as Currency;
+    console.log('[Layout] onChange triggered, new value:', newCurrency);
+    
+    // Update local state immediately for UI responsiveness
+    setLocalCurrency(newCurrency);
+    
+    // Update store
+    try {
+      const store = usePosStore.getState();
+      if (store.setCurrency && typeof store.setCurrency === 'function') {
+        store.setCurrency(newCurrency);
+        console.log('[Layout] Currency updated in store successfully');
+      } else {
+        console.warn('[Layout] setCurrency not available, using fallback');
+        // Fallback: manually update currency
+        usePosStore.setState({ currency: newCurrency });
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.setItem('currency', newCurrency);
+        }
+      }
+    } catch (error) {
+      console.error('[Layout] Error updating currency:', error);
+      // Fallback: manually update
+      usePosStore.setState({ currency: newCurrency });
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem('currency', newCurrency);
+      }
+    }
+  }, []);
   const {
     token: { colorBgContainer },
   } = theme.useToken();
@@ -158,6 +201,12 @@ export default function Layout() {
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Debug: Track currency changes
+  useEffect(() => {
+    console.log('[Layout] Currency changed to:', currency);
+  }, [currency]);
+
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
@@ -323,14 +372,8 @@ export default function Layout() {
           </Space>
           <Space>
             <Select
-              value={currency}
-              onChange={(value) => {
-                if (setCurrency && typeof setCurrency === 'function') {
-                  setCurrency(value as Currency);
-                } else {
-                  console.warn('[Layout] setCurrency function not available');
-                }
-              }}
+              value={localCurrency}
+              onChange={handleCurrencyChange}
               style={{ width: 100 }}
               size="small"
             >

@@ -4,8 +4,9 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import usePosStore from '../stores/usePosStore';
 import type { Recipe, Ingredient, Product } from '../types';
 import axios from 'axios';
+import { formatCurrency } from '../utils/currency';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { Option } = Select;
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -13,10 +14,12 @@ export default function Recipes() {
   const store = usePosStore();
   const products = store.products || [];
   const { currentOutlet, isOnline } = store;
+  const currency = usePosStore((state) => state.currency) || 'USD';
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [recipeCosts, setRecipeCosts] = useState<Record<string, number>>({});
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -31,7 +34,21 @@ export default function Recipes() {
     try {
       if (isOnline) {
         const response = await axios.get(`${API_BASE_URL}/recipes`);
-        setRecipes(response.data || []);
+        const recipesData = response.data || [];
+        setRecipes(recipesData);
+        
+        // Load costs for all recipes
+        const costs: Record<string, number> = {};
+        for (const recipe of recipesData) {
+          try {
+            const costResponse = await axios.get(`${API_BASE_URL}/recipes/${recipe.id}/cost`);
+            costs[recipe.id] = costResponse.data.total_cost || 0;
+          } catch (error) {
+            console.warn(`Error loading cost for recipe ${recipe.id}:`, error);
+            costs[recipe.id] = 0;
+          }
+        }
+        setRecipeCosts(costs);
       }
     } catch (error: any) {
       console.error('Error loading recipes:', error);
@@ -145,6 +162,18 @@ export default function Recipes() {
       dataIndex: 'preparation_time',
       key: 'preparation_time',
       render: (time: number) => time ? `${time} min` : '-',
+    },
+    {
+      title: 'Recipe Cost',
+      key: 'cost',
+      render: (_: any, record: Recipe) => {
+        const cost = recipeCosts[record.id] || 0;
+        return (
+          <Text strong style={{ color: cost > 0 ? '#1890ff' : '#999' }}>
+            {formatCurrency(cost, currency)}
+          </Text>
+        );
+      },
     },
     {
       title: 'Actions',

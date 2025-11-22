@@ -13,6 +13,7 @@ import {
   ShoppingCartOutlined,
   RiseOutlined,
   CalendarOutlined,
+  DollarOutlined,
 } from '@ant-design/icons';
 import db from '../services/database';
 import { startOfDay, endOfDay, subDays } from 'date-fns';
@@ -21,11 +22,15 @@ import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import usePosStore from '../stores/usePosStore';
 import { getCurrencySymbol, formatCurrency } from '../utils/currency';
+import axios from 'axios';
+import type { Recipe } from '../types';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const { RangePicker } = DatePicker;
 
 export default function Reports() {
-  const { currency } = usePosStore();
+  const currency = usePosStore((state) => state.currency) || 'USD';
   const [sales, setSales] = useState<Sale[]>([]);
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
     dayjs(subDays(new Date(), 7)),
@@ -37,10 +42,15 @@ export default function Reports() {
     averageTransaction: 0,
     todayRevenue: 0,
   });
+  const [recipeCosts, setRecipeCosts] = useState<Array<{ recipe: Recipe; cost: number }>>([]);
+  const { isOnline } = usePosStore();
 
   useEffect(() => {
     loadSales();
-  }, [dateRange]);
+    if (isOnline) {
+      loadRecipeCosts();
+    }
+  }, [dateRange, isOnline]);
 
   const loadSales = async () => {
     try {
@@ -74,6 +84,31 @@ export default function Reports() {
       });
     } catch (error) {
       console.error('Error loading sales:', error);
+    }
+  };
+
+  const loadRecipeCosts = async () => {
+    try {
+      if (!isOnline) return;
+      
+      const recipesResponse = await axios.get(`${API_BASE_URL}/recipes`);
+      const recipes = recipesResponse.data || [];
+      
+      const costs = await Promise.all(
+        recipes.map(async (recipe: Recipe) => {
+          try {
+            const costResponse = await axios.get(`${API_BASE_URL}/recipes/${recipe.id}/cost`);
+            return { recipe, cost: costResponse.data.total_cost || 0 };
+          } catch (error) {
+            console.warn(`Error loading cost for recipe ${recipe.id}:`, error);
+            return { recipe, cost: 0 };
+          }
+        })
+      );
+      
+      setRecipeCosts(costs.sort((a, b) => b.cost - a.cost));
+    } catch (error) {
+      console.error('Error loading recipe costs:', error);
     }
   };
 
@@ -197,7 +232,7 @@ export default function Reports() {
         </Col>
       </Row>
 
-      <Card title="Top Products" style={{ borderRadius: 12 }}>
+      <Card title="Top Products" style={{ borderRadius: 12, marginBottom: 16 }}>
         <Table
           dataSource={topProducts}
           columns={columns}
@@ -205,6 +240,83 @@ export default function Reports() {
           pagination={false}
         />
       </Card>
+
+      {isOnline && recipeCosts.length > 0 && (
+        <Card 
+          title={
+            <Space>
+              <DollarOutlined />
+              <span>Recipe Cost Analysis</span>
+            </Space>
+          } 
+          style={{ borderRadius: 12 }}
+        >
+          <Table
+            dataSource={recipeCosts}
+            rowKey={(record) => record.recipe.id}
+            pagination={false}
+            columns={[
+              {
+                title: 'Recipe Name',
+                dataIndex: ['recipe', 'name'],
+                key: 'name',
+              },
+              {
+                title: 'Product',
+                key: 'product',
+                render: (_: any, record: { recipe: Recipe; cost: number }) => {
+                  const product = usePosStore.getState().products.find(p => p.id === record.recipe.product_id);
+                  return product?.name || record.recipe.product_id;
+                },
+              },
+              {
+                title: 'Recipe Cost',
+                dataIndex: 'cost',
+                key: 'cost',
+                render: (cost: number) => (
+                  <span style={{ fontWeight: 'bold', color: '#cf1322' }}>
+                    {formatCurrency(cost, currency)}
+                  </span>
+                ),
+                sorter: (a: any, b: any) => a.cost - b.cost,
+              },
+              {
+                title: 'Product Price',
+                key: 'product_price',
+                render: (_: any, record: { recipe: Recipe; cost: number }) => {
+                  const product = usePosStore.getState().products.find(p => p.id === record.recipe.product_id);
+                  const price = product?.price || 0;
+                  return formatCurrency(price, currency);
+                },
+              },
+              {
+                title: 'Profit Margin',
+                key: 'margin',
+                render: (_: any, record: { recipe: Recipe; cost: number }) => {
+                  const product = usePosStore.getState().products.find(p => p.id === record.recipe.product_id);
+                  const price = product?.price || 0;
+                  const margin = price > 0 ? ((price - record.cost) / price) * 100 : 0;
+                  const marginAmount = price - record.cost;
+                  return (
+                    <Space direction="vertical" size="small">
+                      <span style={{ fontWeight: 'bold', color: margin > 0 ? '#3f8600' : '#cf1322' }}>
+                        {formatCurrency(marginAmount, currency)} ({margin.toFixed(1)}%)
+                      </span>
+                    </Space>
+                  );
+                },
+                sorter: (a: any, b: any) => {
+                  const productA = usePosStore.getState().products.find(p => p.id === a.recipe.product_id);
+                  const productB = usePosStore.getState().products.find(p => p.id === b.recipe.product_id);
+                  const marginA = productA?.price ? ((productA.price - a.cost) / productA.price) * 100 : 0;
+                  const marginB = productB?.price ? ((productB.price - b.cost) / productB.price) * 100 : 0;
+                  return marginA - marginB;
+                },
+              },
+            ]}
+          />
+        </Card>
+      )}
     </div>
   );
 }

@@ -95,8 +95,10 @@ router.post('/', async (req, res) => {
       synced: true
     });
     
-    // Deduct ingredients if recipes are involved
+    // Validate and deduct ingredients if recipes are involved
     if (orderData.items) {
+      const insufficientStock = [];
+      
       for (const item of orderData.items) {
         const recipe = await Recipe.findOne({ product_id: item.product_id });
         if (recipe) {
@@ -104,10 +106,37 @@ router.post('/', async (req, res) => {
             const ingredientDoc = await Ingredient.findOne({ id: ingredient.ingredient_id });
             if (ingredientDoc) {
               const needed = ingredient.quantity * item.quantity;
-              if (ingredientDoc.current_stock >= needed) {
-                ingredientDoc.current_stock -= needed;
-                await ingredientDoc.save();
+              if (ingredientDoc.current_stock < needed) {
+                insufficientStock.push({
+                  product: item.product_name,
+                  ingredient: ingredientDoc.name,
+                  required: needed,
+                  available: ingredientDoc.current_stock
+                });
               }
+            }
+          }
+        }
+      }
+      
+      // If insufficient stock, return error before creating order
+      if (insufficientStock.length > 0) {
+        return res.status(400).json({ 
+          error: 'Insufficient ingredient stock',
+          details: insufficientStock
+        });
+      }
+      
+      // Deduct ingredients after validation
+      for (const item of orderData.items) {
+        const recipe = await Recipe.findOne({ product_id: item.product_id });
+        if (recipe) {
+          for (const ingredient of recipe.ingredients) {
+            const ingredientDoc = await Ingredient.findOne({ id: ingredient.ingredient_id });
+            if (ingredientDoc) {
+              const needed = ingredient.quantity * item.quantity;
+              ingredientDoc.current_stock -= needed;
+              await ingredientDoc.save();
             }
           }
         }

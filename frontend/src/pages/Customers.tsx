@@ -12,6 +12,7 @@ import {
   Card,
   Tag,
   Checkbox,
+  Select,
 } from 'antd';
 import {
   PlusCircleOutlined,
@@ -23,20 +24,29 @@ import {
   PhoneOutlined,
   MessageOutlined,
   StarOutlined,
+  SendOutlined,
 } from '@ant-design/icons';
 import usePosStore from '../stores/usePosStore';
 import type { Customer } from '../types';
+import axios from 'axios';
+import { formatCurrency } from '../utils/currency';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 
 export default function Customers() {
   const store = usePosStore();
   const customers = store.customers || [];
+  const currency = usePosStore((state) => state.currency) || 'USD';
   const { addCustomer, updateCustomer, deleteCustomer, loadCustomers } = store;
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [form] = Form.useForm();
+  const [smsForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [isSmsModalOpen, setIsSmsModalOpen] = useState(false);
+  const [smsLoading, setSmsLoading] = useState(false);
 
   useEffect(() => {
     loadCustomers();
@@ -107,6 +117,29 @@ export default function Customers() {
     }
   };
 
+  const handleSendSMS = async () => {
+    try {
+      setSmsLoading(true);
+      const values = await smsForm.validateFields();
+      
+      const response = await axios.post(`${API_BASE_URL}/customers/send-sms`, {
+        message: values.message,
+        customer_ids: values.customer_ids || undefined,
+        filter: values.filter || undefined
+      });
+      
+      message.success(`SMS queued for ${response.data.total_recipients} customers`);
+      setIsSmsModalOpen(false);
+      smsForm.resetFields();
+    } catch (error: any) {
+      console.error('Error sending SMS:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error sending SMS';
+      message.error(errorMessage);
+    } finally {
+      setSmsLoading(false);
+    }
+  };
+
   const columns = [
     {
       title: 'Name',
@@ -169,7 +202,7 @@ export default function Customers() {
       title: 'Total Spent',
       dataIndex: 'total_spent',
       key: 'total_spent',
-      render: (spent: number) => spent ? `$${spent.toFixed(2)}` : '$0.00',
+      render: (spent: number) => formatCurrency(spent || 0, currency),
     },
     {
       title: 'Marketing',
@@ -228,6 +261,14 @@ export default function Customers() {
               allowClear
               size="large"
             />
+            <Button
+              type="default"
+              icon={<SendOutlined />}
+              onClick={() => setIsSmsModalOpen(true)}
+              size="large"
+            >
+              Send SMS Marketing
+            </Button>
             <Button
               type="primary"
               icon={<PlusCircleOutlined />}
@@ -300,6 +341,62 @@ export default function Customers() {
           </Form.Item>
           <Form.Item name="notes" label="Notes">
             <Input.TextArea placeholder="Customer notes" rows={3} size="large" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* SMS Marketing Modal */}
+      <Modal
+        title="Send SMS Marketing"
+        open={isSmsModalOpen}
+        onCancel={() => {
+          setIsSmsModalOpen(false);
+          smsForm.resetFields();
+        }}
+        onOk={handleSendSMS}
+        confirmLoading={smsLoading}
+        okText="Send SMS"
+        cancelText="Cancel"
+        width={600}
+      >
+        <Form form={smsForm} layout="vertical">
+          <Form.Item
+            name="message"
+            label="SMS Message"
+            rules={[{ required: true, message: 'Please enter SMS message' }]}
+          >
+            <Input.TextArea 
+              rows={4} 
+              placeholder="Enter your marketing message here..."
+              maxLength={160}
+              showCount
+            />
+          </Form.Item>
+          <Form.Item
+            name="customer_ids"
+            label="Select Customers (Optional - leave empty to send to all opted-in customers)"
+          >
+            <Select
+              mode="multiple"
+              placeholder="Select specific customers or leave empty for all"
+              showSearch
+              filterOption={(input: string, option: any) =>
+                String(option?.label || "").toLowerCase().includes(input.toLowerCase())
+              }
+            >
+              {customers
+                .filter(c => c.sms_opt_in && c.phone)
+                .map((customer) => (
+                  <Select.Option key={customer.id} value={customer.id}>
+                    {customer.name} ({customer.phone})
+                  </Select.Option>
+                ))}
+            </Select>
+          </Form.Item>
+          <Form.Item>
+            <Tag color="blue">
+              {customers.filter(c => c.sms_opt_in && c.phone).length} customers opted in for SMS
+            </Tag>
           </Form.Item>
         </Form>
       </Modal>

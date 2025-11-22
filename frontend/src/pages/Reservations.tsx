@@ -12,10 +12,18 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
 export default function Reservations() {
   const { currentOutlet, isOnline } = usePosStore();
+  const tables = usePosStore((state) => state.tables) || [];
+  const loadTables = usePosStore((state) => state.loadTables);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [form] = Form.useForm();
+
+  useEffect(() => {
+    if (loadTables) {
+      loadTables().catch(console.error);
+    }
+  }, [loadTables]);
 
   useEffect(() => {
     if (isOnline) {
@@ -230,8 +238,12 @@ export default function Reservations() {
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="table_id" label="Table">
-            <Select placeholder="Select table">
-              {/* Tables will be loaded from store */}
+            <Select placeholder="Select table" allowClear>
+              {tables.map((table) => (
+                <Option key={table.id} value={table.id}>
+                  Table {table.number} ({table.capacity} guests) - {table.location || 'No location'}
+                </Option>
+              ))}
             </Select>
           </Form.Item>
           <Form.Item name="special_requests" label="Special Requests">

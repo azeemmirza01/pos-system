@@ -49,11 +49,15 @@ export default function Billing() {
   const clearCart = usePosStore((state) => state.clearCart);
   const createSale = usePosStore((state) => state.createSale);
   // Don't use selector for createOrder - get it directly when needed
-  const currency = usePosStore((state) => state.currency);
+  const currency = usePosStore((state) => state.currency) || 'USD';
   const isFullScreen = usePosStore((state) => state.isFullScreen);
   const toggleFullScreen = usePosStore((state) => state.toggleFullScreen);
   const setOrderType = usePosStore((state) => state.setOrderType);
   const [searchQuery, setSearchQuery] = useState("");
+  const customers = usePosStore((state) => state.customers) || [];
+  const tables = usePosStore((state) => state.tables) || [];
+  const loadCustomers = usePosStore((state) => state.loadCustomers);
+  const loadTables = usePosStore((state) => state.loadTables);
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [discount, setDiscount] = useState(0);
@@ -68,6 +72,16 @@ export default function Billing() {
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryPhone, setDeliveryPhone] = useState("");
+
+  // Load customers and tables on mount
+  useEffect(() => {
+    if (loadCustomers) {
+      loadCustomers().catch(console.error);
+    }
+    if (loadTables) {
+      loadTables().catch(console.error);
+    }
+  }, [loadCustomers, loadTables]);
 
   // Load product images
   useEffect(() => {
@@ -619,11 +633,11 @@ export default function Billing() {
             style={{ borderRadius: 12, position: "sticky", top: 24 }}
           >
             <Space direction="vertical" style={{ width: "100%" }} size="middle">
-              {/* <Select
+              <Select
                 placeholder="Select Customer (Optional)"
                 style={{ width: "100%" }}
                 value={selectedCustomer}
-                onChange={setSelectedCustomer}
+                onChange={(value) => setSelectedCustomer(value || null)}
                 allowClear
                 showSearch
                 size="large"
@@ -633,15 +647,14 @@ export default function Billing() {
                     .includes(input.toLowerCase())
                 }
               >
-                <Option value="">Walk-in Customer</Option>
                 {customers.map((customer) => (
                   <Option key={customer.id} value={customer.id}>
-                    {customer.name}
+                    {customer.name} {customer.phone ? `(${customer.phone})` : ''}
                   </Option>
                 ))}
               </Select>
 
-              <Divider style={{ margin: "12px 0" }} /> */}
+              <Divider style={{ margin: "12px 0" }} />
 
               {cart.length === 0 ? (
                 <Empty description="Cart is empty" />
@@ -706,7 +719,13 @@ export default function Billing() {
                     allowClear
                   >
                     <Option value="">No Table</Option>
-                    {/* Tables will be loaded from store */}
+                    {tables
+                      .filter((table) => table.status === 'available' || table.status === 'occupied')
+                      .map((table) => (
+                        <Option key={table.id} value={table.id}>
+                          Table {table.number} ({table.capacity} guests) - {table.status}
+                        </Option>
+                      ))}
                   </Select>
                 </>
               )}

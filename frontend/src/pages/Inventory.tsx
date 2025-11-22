@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, WarningOutlined } from '@an
 import usePosStore from '../stores/usePosStore';
 import type { Ingredient, Waste } from '../types';
 import axios from 'axios';
+import { formatCurrency } from '../utils/currency';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -11,6 +12,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
 export default function Inventory() {
   const { currentOutlet, isOnline } = usePosStore();
+  const currency = usePosStore((state) => state.currency) || 'USD';
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [lowStockItems, setLowStockItems] = useState<Ingredient[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -142,7 +144,7 @@ export default function Inventory() {
       title: 'Cost/Unit',
       dataIndex: 'cost_per_unit',
       key: 'cost_per_unit',
-      render: (cost: number) => `$${cost.toFixed(2)}`,
+      render: (cost: number) => formatCurrency(cost || 0, currency),
     },
     {
       title: 'Category',

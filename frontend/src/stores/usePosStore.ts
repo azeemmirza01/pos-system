@@ -7,7 +7,7 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-// Safe localStorage access
+// Safe localStorage access - Always default to USD
 const getStoredCurrency = (): Currency => {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -15,10 +15,13 @@ const getStoredCurrency = (): Currency => {
       if (stored === 'USD' || stored === 'EUR') {
         return stored as Currency;
       }
+      // If no currency stored or invalid, set USD as default
+      localStorage.setItem('currency', 'USD');
     }
   } catch (error) {
     console.warn('Error accessing localStorage:', error);
   }
+  // Always return USD as default
   return 'USD';
 };
 
@@ -44,19 +47,24 @@ const usePosStore = create<PosStore>((set, get) => {
   // Initialize
   initialize: async () => {
     try {
-      // Load currency preference, default to USD if not set
+      // Load currency preference, always default to USD if not set
       try {
         if (typeof window !== 'undefined' && window.localStorage) {
-      const savedCurrency = localStorage.getItem('currency') as Currency;
-      if (savedCurrency && (savedCurrency === 'USD' || savedCurrency === 'EUR')) {
-        set({ currency: savedCurrency });
-      } else {
-        localStorage.setItem('currency', 'USD');
+          const savedCurrency = localStorage.getItem('currency') as Currency;
+          if (savedCurrency && (savedCurrency === 'USD' || savedCurrency === 'EUR')) {
+            set({ currency: savedCurrency });
+          } else {
+            // Always default to USD if not set or invalid
+            localStorage.setItem('currency', 'USD');
             set({ currency: 'USD' });
           }
+        } else {
+          // If localStorage not available, default to USD
+          set({ currency: 'USD' });
         }
       } catch (storageError) {
         console.warn('Error accessing localStorage:', storageError);
+        // Always default to USD on error
         set({ currency: 'USD' });
       }
       
@@ -100,14 +108,17 @@ const usePosStore = create<PosStore>((set, get) => {
 
   // Currency
   setCurrency: (currency: Currency) => {
+    console.log('[Store] setCurrency called with:', currency);
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
-    localStorage.setItem('currency', currency);
+        localStorage.setItem('currency', currency);
+        console.log('[Store] Saved to localStorage:', currency);
       }
     } catch (error) {
       console.warn('Error saving currency to localStorage:', error);
     }
     set({ currency });
+    console.log('[Store] State updated. Current currency:', get().currency);
   },
 
   // Products

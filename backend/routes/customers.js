@@ -84,5 +84,90 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Send SMS to customers (SMS Marketing)
+router.post('/send-sms', async (req, res) => {
+  try {
+    const { message, customer_ids, filter } = req.body;
+    
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+    
+    let customers = [];
+    
+    if (customer_ids && customer_ids.length > 0) {
+      // Send to specific customers
+      customers = await Customer.find({ 
+        id: { $in: customer_ids },
+        sms_opt_in: true,
+        phone: { $exists: true, $ne: null, $ne: '' }
+      });
+    } else if (filter) {
+      // Filter customers based on criteria
+      const query = { sms_opt_in: true, phone: { $exists: true, $ne: null, $ne: '' } };
+      
+      if (filter.loyalty_points_min) {
+        query.loyalty_points = { $gte: filter.loyalty_points_min };
+      }
+      if (filter.tags && filter.tags.length > 0) {
+        query.tags = { $in: filter.tags };
+      }
+      if (filter.outlet_id) {
+        query.outlet_id = filter.outlet_id;
+      }
+      
+      customers = await Customer.find(query);
+    } else {
+      // Send to all opted-in customers
+      customers = await Customer.find({ 
+        sms_opt_in: true,
+        phone: { $exists: true, $ne: null, $ne: '' }
+      });
+    }
+    
+    if (customers.length === 0) {
+      return res.status(400).json({ error: 'No customers found matching criteria' });
+    }
+    
+    // In a real implementation, you would integrate with SMS service like Twilio
+    // For now, we'll just return the list of customers who would receive the SMS
+    const results = customers.map(customer => ({
+      customer_id: customer.id,
+      name: customer.name,
+      phone: customer.phone,
+      status: 'queued' // In real implementation, this would be 'sent' or 'failed'
+    }));
+    
+    // TODO: Integrate with SMS service (Twilio, AWS SNS, etc.)
+    // Example: await twilioClient.messages.create({ to: customer.phone, body: message });
+    
+    res.json({
+      message: 'SMS queued for sending',
+      total_recipients: customers.length,
+      recipients: results,
+      note: 'SMS service integration required. Configure Twilio or similar service in backend.'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get customers eligible for SMS marketing
+router.get('/sms-eligible', async (req, res) => {
+  try {
+    const customers = await Customer.find({ 
+      sms_opt_in: true,
+      phone: { $exists: true, $ne: null, $ne: '' }
+    }).select('id name phone loyalty_points tags');
+    
+    res.json({
+      total: customers.length,
+      customers: customers
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
 

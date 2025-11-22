@@ -62,7 +62,8 @@ const PRODUCT_CATEGORIES = [
 export default function Products() {
   const store = usePosStore();
   const products = store.products || [];
-  const { addProduct, updateProduct, deleteProduct, loadProducts, currency } = store;
+  const { addProduct, updateProduct, deleteProduct, loadProducts } = store;
+  const currency = usePosStore((state) => state.currency) || 'USD';
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);

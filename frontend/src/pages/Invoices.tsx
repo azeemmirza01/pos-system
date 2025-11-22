@@ -26,7 +26,7 @@ import { formatCurrency } from '../utils/currency';
 const { Title } = Typography;
 
 export default function Invoices() {
-  const { currency } = usePosStore();
+  const currency = usePosStore((state) => state.currency) || 'USD';
   const [sales, setSales] = useState<Sale[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);

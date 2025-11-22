@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Row, Col, Tag, Button, Space, Typography, Badge, Empty } from 'antd';
+import { Card, Row, Col, Tag, Button, Space, Typography, Badge, Empty, message } from 'antd';
 import { ClockCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import usePosStore from '../stores/usePosStore';
 import type { Order, OrderItem } from '../types';
@@ -52,13 +52,20 @@ export default function Bar() {
 
   const updateItemStatus = async (orderId: string, itemIndex: number, status: string) => {
     try {
+      if (!isOnline) {
+        message.error('You are offline. Please connect to the internet to update order status.');
+        return;
+      }
       await axios.put(`${API_BASE_URL}/orders/${orderId}/items/${itemIndex}/status`, { 
         status,
         station: 'bar'
       });
       await loadBarOrders();
-    } catch (error) {
+      message.success('Order status updated successfully');
+    } catch (error: any) {
       console.error('Error updating item status:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error updating order status';
+      message.error(errorMessage);
     }
   };
 

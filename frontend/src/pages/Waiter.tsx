@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Card, Row, Col, Tag, Button, Space, Typography, Table, Empty } from 'antd';
+import { Card, Row, Col, Tag, Button, Space, Typography, Table, Empty, message } from 'antd';
 import { CheckCircleOutlined, UserOutlined } from '@ant-design/icons';
 import usePosStore from '../stores/usePosStore';
 import type { Order, Table as TableType } from '../types';
 import axios from 'axios';
+import { formatCurrency } from '../utils/currency';
 
 const { Title, Text } = Typography;
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -11,6 +12,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 export default function Waiter() {
   const store = usePosStore();
   const { isOnline } = store;
+  const currency = usePosStore((state) => state.currency) || 'USD';
   const tables = store.tables || [];
   const loadTables = store.loadTables;
   
@@ -50,21 +52,35 @@ export default function Waiter() {
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
+      if (!isOnline) {
+        message.error('You are offline. Please connect to the internet to update order status.');
+        return;
+      }
       await axios.put(`${API_BASE_URL}/orders/${orderId}`, { status });
       await loadActiveOrders();
-    } catch (error) {
+      message.success('Order status updated successfully');
+    } catch (error: any) {
       console.error('Error updating order status:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error updating order status';
+      message.error(errorMessage);
     }
   };
 
   const markItemServed = async (orderId: string, itemIndex: number) => {
     try {
+      if (!isOnline) {
+        message.error('You are offline. Please connect to the internet to update order status.');
+        return;
+      }
       await axios.put(`${API_BASE_URL}/orders/${orderId}/items/${itemIndex}/status`, { 
         status: 'served'
       });
       await loadActiveOrders();
-    } catch (error) {
+      message.success('Item marked as served');
+    } catch (error: any) {
       console.error('Error marking item as served:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error marking item as served';
+      message.error(errorMessage);
     }
   };
 
@@ -148,7 +164,7 @@ export default function Waiter() {
       title: 'Total',
       dataIndex: 'total_amount',
       key: 'total_amount',
-      render: (amount: number) => `$${amount.toFixed(2)}`,
+      render: (amount: number) => formatCurrency(amount || 0, currency),
     },
     {
       title: 'Status',

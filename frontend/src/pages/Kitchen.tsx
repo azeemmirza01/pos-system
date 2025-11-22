@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Card, Row, Col, Tag, Button, Space, Typography, Badge, Empty } from 'antd';
-import { ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Tag, Button, Space, Typography, Badge, Empty, message } from 'antd';
+import { ClockCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import usePosStore from '../stores/usePosStore';
 import type { Order, OrderItem } from '../types';
 import axios from 'axios';
@@ -11,7 +11,6 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 export default function Kitchen() {
   const { isOnline } = usePosStore();
   const [kitchenOrders, setKitchenOrders] = useState<Order[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadKitchenOrders();
@@ -25,7 +24,6 @@ export default function Kitchen() {
 
   const loadKitchenOrders = async () => {
     try {
-      setRefreshing(true);
       if (isOnline) {
         console.log('[Kitchen] Fetching orders from:', `${API_BASE_URL}/orders?station=kitchen`);
         const response = await axios.get(`${API_BASE_URL}/orders?station=kitchen`);
@@ -49,17 +47,22 @@ export default function Kitchen() {
       }
     } catch (error) {
       console.error('[Kitchen] Error loading kitchen orders:', error);
-    } finally {
-      setRefreshing(false);
     }
   };
 
   const updateItemStatus = async (orderId: string, itemIndex: number, status: string) => {
     try {
+      if (!isOnline) {
+        message.error('You are offline. Please connect to the internet to update order status.');
+        return;
+      }
       await axios.put(`${API_BASE_URL}/orders/${orderId}/items/${itemIndex}/status`, { status });
       await loadKitchenOrders();
-    } catch (error) {
+      message.success('Order status updated successfully');
+    } catch (error: any) {
       console.error('Error updating item status:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error updating order status';
+      message.error(errorMessage);
     }
   };
 

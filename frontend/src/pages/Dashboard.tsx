@@ -20,7 +20,7 @@ export default function Dashboard() {
   const store = usePosStore();
   const products = store.products || [];
   const customers = store.customers || [];
-  const { currency } = store;
+  const currency = usePosStore((state) => state.currency) || 'USD';
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalSales: 0,
