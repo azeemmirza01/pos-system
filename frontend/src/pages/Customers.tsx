@@ -3,6 +3,7 @@ import {
   Table,
   Button,
   Input,
+  InputNumber,
   Modal,
   Form,
   Space,
@@ -10,6 +11,7 @@ import {
   Popconfirm,
   Card,
   Tag,
+  Checkbox,
 } from 'antd';
 import {
   PlusCircleOutlined,
@@ -19,13 +21,17 @@ import {
   TeamOutlined,
   MailOutlined,
   PhoneOutlined,
+  MessageOutlined,
+  StarOutlined,
 } from '@ant-design/icons';
 import usePosStore from '../stores/usePosStore';
 import type { Customer } from '../types';
 
 
 export default function Customers() {
-  const { customers, addCustomer, updateCustomer, deleteCustomer, loadCustomers } = usePosStore();
+  const store = usePosStore();
+  const customers = store.customers || [];
+  const { addCustomer, updateCustomer, deleteCustomer, loadCustomers } = store;
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -51,6 +57,11 @@ export default function Customers() {
         email: customer.email || '',
         phone: customer.phone || '',
         address: customer.address || '',
+        loyalty_points: customer.loyalty_points || 0,
+        sms_opt_in: customer.sms_opt_in || false,
+        email_opt_in: customer.email_opt_in || false,
+        tags: customer.tags || [],
+        notes: customer.notes || '',
       });
     } else {
       setEditingCustomer(null);
@@ -142,6 +153,33 @@ export default function Customers() {
       dataIndex: 'address',
       key: 'address',
       render: (address: string) => address || <Tag color="default">N/A</Tag>,
+    },
+    {
+      title: 'Loyalty Points',
+      dataIndex: 'loyalty_points',
+      key: 'loyalty_points',
+      render: (points: number) => (
+        <Space>
+          <StarOutlined style={{ color: '#faad14' }} />
+          <span>{points || 0}</span>
+        </Space>
+      ),
+    },
+    {
+      title: 'Total Spent',
+      dataIndex: 'total_spent',
+      key: 'total_spent',
+      render: (spent: number) => spent ? `$${spent.toFixed(2)}` : '$0.00',
+    },
+    {
+      title: 'Marketing',
+      key: 'marketing',
+      render: (_: any, record: Customer) => (
+        <Space>
+          {record.sms_opt_in && <Tag color="green" icon={<MessageOutlined />}>SMS</Tag>}
+          {record.email_opt_in && <Tag color="blue" icon={<MailOutlined />}>Email</Tag>}
+        </Space>
+      ),
     },
     {
       title: 'Actions',
@@ -247,6 +285,21 @@ export default function Customers() {
 
           <Form.Item name="address" label="Address">
             <Input.TextArea placeholder="Enter address" rows={3} size="large" />
+          </Form.Item>
+          <Form.Item name="loyalty_points" label="Loyalty Points" initialValue={0}>
+            <InputNumber min={0} placeholder="Loyalty points" style={{ width: '100%' }} size="large" />
+          </Form.Item>
+          <Form.Item name="sms_opt_in" label="SMS Marketing" valuePropName="checked">
+            <Checkbox>Enable SMS Marketing</Checkbox>
+          </Form.Item>
+          <Form.Item name="email_opt_in" label="Email Marketing" valuePropName="checked">
+            <Checkbox>Enable Email Marketing</Checkbox>
+          </Form.Item>
+          <Form.Item name="tags" label="Tags">
+            <Input placeholder="Comma-separated tags" size="large" />
+          </Form.Item>
+          <Form.Item name="notes" label="Notes">
+            <Input.TextArea placeholder="Customer notes" rows={3} size="large" />
           </Form.Item>
         </Form>
       </Modal>

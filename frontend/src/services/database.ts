@@ -8,39 +8,65 @@ class DatabaseService {
 
   async query(sql: string, params: any[] = []): Promise<any> {
     if (this.isElectronAvailable()) {
-      return await window.electronAPI!.dbQuery(sql, params);
+      try {
+        return await window.electronAPI!.dbQuery(sql, params);
+      } catch (error) {
+        console.error('Database query error:', error);
+        return null;
+      }
     }
-    console.warn('Electron API not available - database operations will fail');
-    throw new Error('Electron API not available. Please run in Electron.');
+    console.warn('Electron API not available - returning empty result');
+    return null;
   }
 
   async exec(sql: string, params: any[] = []): Promise<any> {
     if (this.isElectronAvailable()) {
-      return await window.electronAPI!.dbExec(sql, params);
+      try {
+        return await window.electronAPI!.dbExec(sql, params);
+      } catch (error) {
+        console.error('Database exec error:', error);
+        return null;
+      }
     }
-    console.warn('Electron API not available - database operations will fail');
-    throw new Error('Electron API not available. Please run in Electron.');
+    console.warn('Electron API not available - returning empty result');
+    return null;
   }
 
   async get(sql: string, params: any[] = []): Promise<any> {
     if (this.isElectronAvailable()) {
-      return await window.electronAPI!.dbGet(sql, params);
+      try {
+        return await window.electronAPI!.dbGet(sql, params);
+      } catch (error) {
+        console.error('Database get error:', error);
+        return null;
+      }
     }
-    console.warn('Electron API not available - database operations will fail');
-    throw new Error('Electron API not available. Please run in Electron.');
+    console.warn('Electron API not available - returning null');
+    return null;
   }
 
   async all(sql: string, params: any[] = []): Promise<any[]> {
     if (this.isElectronAvailable()) {
-      return await window.electronAPI!.dbAll(sql, params);
+      try {
+        return await window.electronAPI!.dbAll(sql, params);
+      } catch (error) {
+        console.error('Database all error:', error);
+        return [];
+      }
     }
-    console.warn('Electron API not available - database operations will fail');
-    throw new Error('Electron API not available. Please run in Electron.');
+    console.warn('Electron API not available - returning empty array');
+    return [];
   }
 
   // Product methods
   async getProducts(): Promise<Product[]> {
-    return await this.all('SELECT * FROM products ORDER BY name');
+    try {
+      const result = await this.all('SELECT * FROM products ORDER BY name');
+      return result || [];
+    } catch (error) {
+      console.error('Error getting products:', error);
+      return [];
+    }
   }
 
   async getProduct(id: string): Promise<Product | null> {
@@ -92,7 +118,13 @@ class DatabaseService {
 
   // Customer methods
   async getCustomers(): Promise<Customer[]> {
-    return await this.all('SELECT * FROM customers ORDER BY name');
+    try {
+      const result = await this.all('SELECT * FROM customers ORDER BY name');
+      return result || [];
+    } catch (error) {
+      console.error('Error getting customers:', error);
+      return [];
+    }
   }
 
   async getCustomer(id: string): Promise<Customer | null> {
@@ -184,13 +216,19 @@ class DatabaseService {
   }
 
   async getSales(limit: number = 100): Promise<Sale[]> {
-    return await this.all(`
-      SELECT s.*, c.name as customer_name 
-      FROM sales s 
-      LEFT JOIN customers c ON s.customer_id = c.id 
-      ORDER BY s.created_at DESC 
-      LIMIT ?
-    `, [limit]);
+    try {
+      const result = await this.all(`
+        SELECT s.*, c.name as customer_name 
+        FROM sales s 
+        LEFT JOIN customers c ON s.customer_id = c.id 
+        ORDER BY s.created_at DESC 
+        LIMIT ?
+      `, [limit]);
+      return result || [];
+    } catch (error) {
+      console.error('Error getting sales:', error);
+      return [];
+    }
   }
 
   async getSale(id: string): Promise<Sale | null> {

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
@@ -31,9 +31,11 @@ function createWindow() {
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
-    // DevTools can be opened manually with Cmd+Option+I (Mac) or Ctrl+Shift+I (Windows/Linux)
+    // Automatically open DevTools in development
+    mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../frontend/dist/index.html'));
+    // In production, allow opening DevTools with Cmd+Option+I (Mac) or Ctrl+Shift+I (Windows/Linux)
   }
 
   mainWindow.on('closed', () => {
@@ -216,8 +218,62 @@ ipcMain.handle('image:delete', async (event, filename) => {
 // Verify handlers are registered
 console.log('IPC handlers registered');
 
+// Create application menu with DevTools option
+function createMenu() {
+  const template = [
+    {
+      label: 'View',
+      submenu: [
+        {
+          label: 'Toggle Developer Tools',
+          accelerator: process.platform === 'darwin' ? 'Cmd+Option+I' : 'Ctrl+Shift+I',
+          click: () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            if (focusedWindow) {
+              focusedWindow.webContents.toggleDevTools();
+            }
+          }
+        },
+        { type: 'separator' },
+        { role: 'reload', label: 'Reload' },
+        { role: 'forceReload', label: 'Force Reload' },
+        { role: 'toggleDevTools', label: 'Toggle Developer Tools' },
+        { type: 'separator' },
+        { role: 'resetZoom', label: 'Actual Size' },
+        { role: 'zoomIn', label: 'Zoom In' },
+        { role: 'zoomOut', label: 'Zoom Out' },
+        { type: 'separator' },
+        { role: 'togglefullscreen', label: 'Toggle Full Screen' }
+      ]
+    }
+  ];
+
+  if (process.platform === 'darwin') {
+    template.unshift({
+      label: app.getName(),
+      submenu: [
+        { role: 'about', label: 'About ' + app.getName() },
+        { type: 'separator' },
+        { role: 'services', label: 'Services' },
+        { type: 'separator' },
+        { role: 'hide', label: 'Hide ' + app.getName() },
+        { role: 'hideOthers', label: 'Hide Others' },
+        { role: 'unhide', label: 'Show All' },
+        { type: 'separator' },
+        { role: 'quit', label: 'Quit ' + app.getName() }
+      ]
+    });
+  }
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
+
 app.whenReady().then(() => {
   console.log('App is ready');
+  
+  // Create application menu
+  createMenu();
   
   try {
     // Initialize database

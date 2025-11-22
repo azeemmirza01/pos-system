@@ -50,10 +50,20 @@ router.post('/', async (req, res) => {
       return res.status(409).json({ error: 'Sale already exists', sale: existing });
     }
 
+    // Calculate subtotal if not provided
+    let subtotal = saleData.subtotal;
+    if (!subtotal && items && items.length > 0) {
+      subtotal = items.reduce((sum, item) => sum + (item.total || (item.price * item.quantity)), 0);
+    }
+    if (!subtotal) {
+      subtotal = saleData.total_amount || 0;
+    }
+
     // Create sale
     const sale = new Sale({
       id: saleId,
       invoice_number: invoiceNumber,
+      subtotal: subtotal,
       ...saleData,
       synced: true
     });

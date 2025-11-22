@@ -12,6 +12,7 @@ import {
   message,
   Popconfirm,
   Card,
+  Select,
 } from 'antd';
 import {
   PlusCircleOutlined,
@@ -26,9 +27,42 @@ import imageService from '../services/imageService';
 import { formatCurrency, getCurrencySymbol } from '../utils/currency';
 
 const { TextArea } = Input;
+const { Option } = Select;
+
+// Predefined categories organized by station
+const PRODUCT_CATEGORIES = [
+  // Bar Categories
+  { value: 'Beverage', label: 'Beverage (Bar)', station: 'bar' },
+  { value: 'Drink', label: 'Drink (Bar)', station: 'bar' },
+  { value: 'Coffee', label: 'Coffee (Bar)', station: 'bar' },
+  { value: 'Tea', label: 'Tea (Bar)', station: 'bar' },
+  { value: 'Juice', label: 'Juice (Bar)', station: 'bar' },
+  { value: 'Soda', label: 'Soda (Bar)', station: 'bar' },
+  { value: 'Beer', label: 'Beer (Bar)', station: 'bar' },
+  { value: 'Wine', label: 'Wine (Bar)', station: 'bar' },
+  { value: 'Cocktail', label: 'Cocktail (Bar)', station: 'bar' },
+  { value: 'Bar', label: 'Bar Items (Bar)', station: 'bar' },
+  
+  // Kitchen Categories
+  { value: 'Food', label: 'Food (Kitchen)', station: 'kitchen' },
+  { value: 'Meal', label: 'Meal (Kitchen)', station: 'kitchen' },
+  { value: 'Dish', label: 'Dish (Kitchen)', station: 'kitchen' },
+  { value: 'Appetizer', label: 'Appetizer (Kitchen)', station: 'kitchen' },
+  { value: 'Main Course', label: 'Main Course (Kitchen)', station: 'kitchen' },
+  { value: 'Dessert', label: 'Dessert (Kitchen)', station: 'kitchen' },
+  { value: 'Salad', label: 'Salad (Kitchen)', station: 'kitchen' },
+  { value: 'Soup', label: 'Soup (Kitchen)', station: 'kitchen' },
+  { value: 'Pastry', label: 'Pastry (Kitchen)', station: 'kitchen' },
+  { value: 'Snack', label: 'Snack (Kitchen)', station: 'kitchen' },
+  
+  // General Categories
+  { value: 'Other', label: 'Other', station: 'none' },
+];
 
 export default function Products() {
-  const { products, addProduct, updateProduct, deleteProduct, loadProducts, currency } = usePosStore();
+  const store = usePosStore();
+  const products = store.products || [];
+  const { addProduct, updateProduct, deleteProduct, loadProducts, currency } = store;
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -503,8 +537,47 @@ export default function Products() {
             />
           </Form.Item>
 
-          <Form.Item name="category" label="Category">
-            <Input placeholder="Enter category" size="large" />
+          <Form.Item 
+            name="category" 
+            label="Category"
+            tooltip="Select a category. Categories marked (Bar) will appear in Bar Display, (Kitchen) in Kitchen Display. You can also type a custom category."
+          >
+            <Select
+              placeholder="Select or type a category"
+              size="large"
+              showSearch
+              allowClear
+              filterOption={(input, option) => {
+                const label = typeof option?.label === 'string' ? option.label : String(option?.label || '');
+                const value = typeof option?.value === 'string' ? option.value : String(option?.value || '');
+                return label.toLowerCase().includes(input.toLowerCase()) || 
+                       value.toLowerCase().includes(input.toLowerCase());
+              }}
+              onSearch={(value) => {
+                // Allow typing custom values
+                if (value && !PRODUCT_CATEGORIES.find(c => c.value.toLowerCase() === value.toLowerCase())) {
+                  // Custom value typed, will be accepted when selected
+                }
+              }}
+              dropdownRender={(menu) => (
+                <>
+                  {menu}
+                  <div style={{ padding: '8px', borderTop: '1px solid #f0f0f0', fontSize: '12px', color: '#999' }}>
+                    💡 Tip: Type to search or enter a custom category name
+                  </div>
+                </>
+              )}
+            >
+              {PRODUCT_CATEGORIES.map((cat) => (
+                <Option key={cat.value} value={cat.value} label={cat.label}>
+                  <Space>
+                    <span>{cat.label}</span>
+                    {cat.station === 'bar' && <Tag color="blue">Bar</Tag>}
+                    {cat.station === 'kitchen' && <Tag color="orange">Kitchen</Tag>}
+                  </Space>
+                </Option>
+              ))}
+            </Select>
           </Form.Item>
 
           <Form.Item name="barcode" label="Barcode">

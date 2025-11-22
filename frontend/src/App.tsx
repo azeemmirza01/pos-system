@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, App as AntApp } from 'antd';
 import Layout from './components/Layout';
+import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './pages/Dashboard';
 import Billing from './pages/Billing';
 import Products from './pages/Products';
@@ -8,6 +9,13 @@ import Customers from './pages/Customers';
 import Invoices from './pages/Invoices';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import Kitchen from './pages/Kitchen';
+import Bar from './pages/Bar';
+import Waiter from './pages/Waiter';
+import Tables from './pages/Tables';
+import Reservations from './pages/Reservations';
+import Recipes from './pages/Recipes';
+import Inventory from './pages/Inventory';
 import './index.css';
 
 // Custom Ant Design theme - Vectron Systems exact design
@@ -81,23 +89,36 @@ const theme = {
 };
 
 function App() {
+  console.log('[App] Component rendering...');
+  
   return (
-    <ConfigProvider theme={theme}>
-      <Router>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="billing" element={<Billing />} />
-            <Route path="products" element={<Products />} />
-            <Route path="customers" element={<Customers />} />
-            <Route path="invoices" element={<Invoices />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="settings" element={<Settings />} />
-          </Route>
-        </Routes>
-      </Router>
-    </ConfigProvider>
+    <ErrorBoundary>
+      <ConfigProvider theme={theme}>
+        <AntApp>
+          <Router>
+            <Routes>
+              <Route path="/" element={<Layout />}>
+                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="billing" element={<Billing />} />
+                <Route path="products" element={<Products />} />
+                <Route path="customers" element={<Customers />} />
+                <Route path="invoices" element={<Invoices />} />
+                <Route path="reports" element={<Reports />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="kitchen" element={<Kitchen />} />
+                <Route path="bar" element={<Bar />} />
+                <Route path="waiter" element={<Waiter />} />
+                <Route path="tables" element={<Tables />} />
+                <Route path="reservations" element={<Reservations />} />
+                <Route path="recipes" element={<Recipes />} />
+                <Route path="inventory" element={<Inventory />} />
+              </Route>
+            </Routes>
+          </Router>
+        </AntApp>
+      </ConfigProvider>
+    </ErrorBoundary>
   );
 }
 

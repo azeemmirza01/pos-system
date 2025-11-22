@@ -1,38 +1,87 @@
 import { create } from 'zustand';
 import db from '../services/database';
 import syncService from '../services/sync';
-import type { PosStore, Product, Customer, SaleData, SyncStatus } from '../types';
+import type { PosStore, Product, Customer, SaleData, SyncStatus, Outlet, Order } from '../types';
 import type { Currency } from '../utils/currency';
+import axios from 'axios';
 
-const usePosStore = create<PosStore>((set, get) => ({
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+// Safe localStorage access
+const getStoredCurrency = (): Currency => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const stored = localStorage.getItem('currency');
+      if (stored === 'USD' || stored === 'EUR') {
+        return stored as Currency;
+      }
+    }
+  } catch (error) {
+    console.warn('Error accessing localStorage:', error);
+  }
+  return 'USD';
+};
+
+const usePosStore = create<PosStore>((set, get) => {
+  console.log('[Store] Creating POS store...');
+  
+  return {
   // State
   products: [],
   customers: [],
   cart: [],
   currentSale: null,
-  isOnline: navigator.onLine,
+  isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
   syncStatus: 'idle' as SyncStatus,
-  currency: (localStorage.getItem('currency') as Currency) || 'USD',
+  currency: getStoredCurrency(),
+  currentOutlet: undefined,
+  outlets: [],
+  orders: [],
+  tables: [],
+  taxes: [],
+  isFullScreen: false,
 
   // Initialize
   initialize: async () => {
     try {
       // Load currency preference, default to USD if not set
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
       const savedCurrency = localStorage.getItem('currency') as Currency;
       if (savedCurrency && (savedCurrency === 'USD' || savedCurrency === 'EUR')) {
         set({ currency: savedCurrency });
       } else {
-        // Set default to USD if no valid currency is saved
         localStorage.setItem('currency', 'USD');
+            set({ currency: 'USD' });
+          }
+        }
+      } catch (storageError) {
+        console.warn('Error accessing localStorage:', storageError);
         set({ currency: 'USD' });
       }
       
-      // Start auto sync
+      // Start auto sync (only if sync service is available)
+      try {
+        if (syncService && typeof syncService.startAutoSync === 'function') {
       syncService.startAutoSync(30000);
+        }
+      } catch (error) {
+        console.warn('Sync service not available:', error);
+        // Don't fail initialization if sync service fails
+      }
       
-      // Load initial data
+      // Load initial data (don't fail if these fail)
+      try {
       await get().loadProducts();
+      } catch (error) {
+        console.warn('Failed to load products:', error);
+      }
+      
+      try {
       await get().loadCustomers();
+      } catch (error) {
+        console.warn('Failed to load customers:', error);
+      }
       
       // Set up online/offline listeners
       if (typeof window !== 'undefined') {
@@ -51,7 +100,13 @@ const usePosStore = create<PosStore>((set, get) => ({
 
   // Currency
   setCurrency: (currency: Currency) => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
     localStorage.setItem('currency', currency);
+      }
+    } catch (error) {
+      console.warn('Error saving currency to localStorage:', error);
+    }
     set({ currency });
   },
 
@@ -59,9 +114,10 @@ const usePosStore = create<PosStore>((set, get) => ({
   loadProducts: async () => {
     try {
       const products = await db.getProducts() as Product[];
-      set({ products });
+      set({ products: products || [] });
     } catch (error) {
       console.error('Error loading products:', error);
+      set({ products: [] });
     }
   },
 
@@ -100,9 +156,10 @@ const usePosStore = create<PosStore>((set, get) => ({
   loadCustomers: async () => {
     try {
       const customers = await db.getCustomers() as Customer[];
-      set({ customers });
+      set({ customers: customers || [] });
     } catch (error) {
       console.error('Error loading customers:', error);
+      set({ customers: [] });
     }
   },
 
@@ -193,10 +250,17 @@ const usePosStore = create<PosStore>((set, get) => ({
         throw new Error('Cart is empty');
       }
 
-      const totalAmount = cart.reduce((sum, item) => sum + item.total, 0);
+      const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
+      const discount = saleData.discount || 0;
+      const tax = saleData.tax || 0;
+      const totalAmount = subtotal + tax - discount;
+      
       const sale: SaleData = {
         ...saleData,
+        subtotal: subtotal,
         total_amount: totalAmount,
+        discount: discount,
+        tax: tax,
         items: cart.map(item => ({
           product_id: item.product_id,
           quantity: item.quantity,
@@ -225,8 +289,155 @@ const usePosStore = create<PosStore>((set, get) => ({
       set({ syncStatus: 'error' });
       console.error('Sync error:', error);
     }
+  },
+
+  // Outlets
+  loadOutlets: async () => {
+    try {
+      if (get().isOnline) {
+        console.log('[Store] Fetching outlets from:', `${API_BASE_URL}/outlets`);
+        const response = await axios.get(`${API_BASE_URL}/outlets`);
+        const outlets = response.data || [];
+        console.log('[Store] Received outlets from API:', outlets.length, outlets);
+        set({ outlets });
+        console.log('[Store] Store updated with outlets. Current state:', get().outlets.length);
+        return outlets;
+      } else {
+        console.warn('[Store] Cannot load outlets: offline');
+        return [];
+      }
+    } catch (error: any) {
+      console.error('[Store] Error loading outlets:', error);
+      console.error('[Store] Error details:', error.response?.data || error.message);
+      set({ outlets: [] });
+      throw error;
+    }
+  },
+
+  setOutlet: (outlet: Outlet) => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem('currentOutlet', JSON.stringify(outlet));
+      }
+    } catch (error) {
+      console.warn('Error saving outlet to localStorage:', error);
+    }
+    set({ currentOutlet: outlet });
+  },
+
+  // Tables
+  loadTables: async () => {
+    try {
+      if (get().isOnline) {
+        const outletId = get().currentOutlet?.id;
+        const response = await axios.get(`${API_BASE_URL}/tables${outletId ? `?outlet_id=${outletId}` : ''}`);
+        set({ tables: response.data });
+      }
+    } catch (error) {
+      console.error('Error loading tables:', error);
+    }
+  },
+
+  // Taxes
+  loadTaxes: async () => {
+    try {
+      if (get().isOnline) {
+        const outletId = get().currentOutlet?.id;
+        const response = await axios.get(`${API_BASE_URL}/taxes${outletId ? `?outlet_id=${outletId}` : ''}`);
+        set({ taxes: response.data });
+      }
+    } catch (error) {
+      console.error('Error loading taxes:', error);
+    }
+  },
+
+  // Orders
+  loadOrders: async () => {
+    try {
+      if (get().isOnline) {
+        const outletId = get().currentOutlet?.id;
+        const response = await axios.get(`${API_BASE_URL}/orders${outletId ? `?outlet_id=${outletId}` : ''}`);
+        set({ orders: response.data });
+      }
+    } catch (error) {
+      console.error('Error loading orders:', error);
+    }
+  },
+
+  createOrder: async (orderData: Partial<Order>) => {
+    try {
+      if (get().isOnline) {
+        const response = await axios.post(`${API_BASE_URL}/orders`, orderData);
+        await get().loadOrders();
+        return response.data;
+      } else {
+        // Save to local storage for offline
+        try {
+          if (typeof window !== 'undefined' && window.localStorage) {
+            const orders = JSON.parse(localStorage.getItem('offline_orders') || '[]');
+            const newOrder = {
+              ...orderData,
+              id: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              order_number: `ORD-${Date.now()}`,
+            };
+            orders.push(newOrder);
+            localStorage.setItem('offline_orders', JSON.stringify(orders));
+            return newOrder;
+          }
+        } catch (error) {
+          console.warn('Error saving offline order:', error);
+        }
+        // Return a basic order object even if localStorage fails
+        return {
+          ...orderData,
+          id: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          order_number: `ORD-${Date.now()}`,
+        } as Order;
+      }
+    } catch (error) {
+      console.error('Error creating order:', error);
+      throw error;
+    }
+  },
+
+  setOrderType: (type: 'dine-in' | 'takeaway' | 'delivery') => {
+    // Store order type in state if needed
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem('orderType', type);
+      }
+    } catch (error) {
+      console.warn('Error saving orderType to localStorage:', error);
+    }
+  },
+
+  toggleFullScreen: () => {
+    const isFullScreen = !get().isFullScreen;
+    set({ isFullScreen });
+    if (isFullScreen) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
   }
-}));
+  };
+});
+
+// Verify store is created correctly and log all methods
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    try {
+      const state = usePosStore.getState();
+      const methods = Object.keys(state).filter(key => typeof state[key as keyof typeof state] === 'function');
+      console.log('[Store] POS store initialized. Available methods:', methods);
+      console.log('[Store] createOrder available:', 'createOrder' in state, typeof state.createOrder);
+      console.log('[Store] loadOrders available:', 'loadOrders' in state, typeof state.loadOrders);
+      console.log('[Store] setOutlet available:', 'setOutlet' in state, typeof state.setOutlet);
+    } catch (error) {
+      console.error('[Store] Error accessing store state:', error);
+    }
+  }, 100);
+}
 
 export default usePosStore;
 

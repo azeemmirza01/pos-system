@@ -17,7 +17,10 @@ import { getCurrencySymbol } from '../utils/currency';
 const { Title } = Typography;
 
 export default function Dashboard() {
-  const { products, customers, currency } = usePosStore();
+  const store = usePosStore();
+  const products = store.products || [];
+  const customers = store.customers || [];
+  const { currency } = store;
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalSales: 0,

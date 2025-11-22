@@ -29,6 +29,16 @@ app.use('/api/customers', require('./routes/customers'));
 app.use('/api/sales', require('./routes/sales'));
 app.use('/api/sale-items', require('./routes/saleItems'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/recipes', require('./routes/recipes'));
+app.use('/api/ingredients', require('./routes/ingredients'));
+app.use('/api/outlets', require('./routes/outlets'));
+app.use('/api/tables', require('./routes/tables'));
+app.use('/api/reservations', require('./routes/reservations'));
+app.use('/api/orders', require('./routes/orders'));
+app.use('/api/taxes', require('./routes/taxes'));
+app.use('/api/waste', require('./routes/waste'));
+app.use('/api/roles', require('./routes/roles'));
+app.use('/api/promotions', require('./routes/promotions'));
 
 // Health check
 app.get('/api/health', (req, res) => {

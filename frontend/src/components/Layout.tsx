@@ -9,6 +9,7 @@ import {
   Button,
   theme,
   Select,
+  Spin,
 } from 'antd';
 import {
   DashboardOutlined,
@@ -21,6 +22,13 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   WifiOutlined,
+  CoffeeOutlined,
+  FireOutlined,
+  UserOutlined,
+  TableOutlined,
+  CalendarOutlined,
+  BookOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons';
 import usePosStore from '../stores/usePosStore';
 import type { MenuProps } from 'antd';
@@ -43,9 +51,56 @@ const menuItems: MenuItem[] = [
     label: 'Billing',
   },
   {
+    type: 'divider',
+  },
+  {
+    key: '/kitchen',
+    icon: <FireOutlined />,
+    label: 'Kitchen',
+  },
+  {
+    key: '/bar',
+    icon: <CoffeeOutlined />,
+    label: 'Bar',
+  },
+  {
+    key: '/waiter',
+    icon: <UserOutlined />,
+    label: 'Waiter',
+  },
+  {
+    type: 'divider',
+  },
+  {
+    key: '/tables',
+    icon: <TableOutlined />,
+    label: 'Tables',
+  },
+  {
+    key: '/reservations',
+    icon: <CalendarOutlined />,
+    label: 'Reservations',
+  },
+  {
+    type: 'divider',
+  },
+  {
     key: '/products',
     icon: <ShopOutlined />,
     label: 'Products',
+  },
+  {
+    key: '/recipes',
+    icon: <BookOutlined />,
+    label: 'Recipes',
+  },
+  {
+    key: '/inventory',
+    icon: <DatabaseOutlined />,
+    label: 'Inventory',
+  },
+  {
+    type: 'divider',
   },
   {
     key: '/customers',
@@ -70,19 +125,38 @@ const menuItems: MenuItem[] = [
 ];
 
 export default function Layout() {
+  console.log('[Layout] Component rendering...');
+  
   const [collapsed, setCollapsed] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [initError, setInitError] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { isOnline, initialize, cart, currency, setCurrency } = usePosStore();
+  
+  // Hooks must be called unconditionally - wrap in try-catch at usage level
+  const storeState = usePosStore();
+  const { isOnline, initialize, cart, currency, setCurrency } = storeState;
   const {
     token: { colorBgContainer },
   } = theme.useToken();
 
   useEffect(() => {
-    initialize().catch((error) => {
-      console.error('Failed to initialize app:', error);
-    });
-  }, [initialize]);
+    const init = async () => {
+      try {
+        setIsInitializing(true);
+        setInitError(null);
+        await initialize();
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error('Failed to initialize app:', error);
+        setInitError(errorMessage);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
@@ -103,6 +177,42 @@ export default function Layout() {
   };
 
   const pageInfo = getPageTitle();
+
+  if (isInitializing) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column',
+        gap: 16
+      }}>
+        <Spin size="large" />
+        <Typography.Text type="secondary">Initializing POS System...</Typography.Text>
+      </div>
+    );
+  }
+
+  if (initError) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column',
+        gap: 16,
+        padding: 20
+      }}>
+        <Typography.Title level={3}>Initialization Error</Typography.Title>
+        <Typography.Text type="danger">{initError}</Typography.Text>
+        <Button type="primary" onClick={() => window.location.reload()}>
+          Reload Page
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <AntLayout style={{ minHeight: '100vh' }}>

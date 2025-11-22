@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import axios from "axios";
 import {
   Row,
   Col,
@@ -23,6 +24,12 @@ import {
   PlusCircleOutlined,
   MinusCircleOutlined,
   CheckCircleOutlined,
+  FullscreenOutlined,
+  FullscreenExitOutlined,
+  SaveOutlined,
+  ShopOutlined,
+  HomeOutlined,
+  CarOutlined,
 } from "@ant-design/icons";
 import usePosStore from "../stores/usePosStore";
 import type { Product, CartItem } from "../types";
@@ -33,24 +40,34 @@ const { Text } = Typography;
 const { Option } = Select;
 
 export default function Billing() {
-  const {
-    products,
-    cart,
-    customers,
-    addToCart,
-    removeFromCart,
-    updateCartItemQuantity,
-    clearCart,
-    createSale,
-    currency,
-  } = usePosStore();
+  const store = usePosStore();
+  const products = store.products || [];
+  const cart = usePosStore((state) => state.cart);
+  const addToCart = usePosStore((state) => state.addToCart);
+  const removeFromCart = usePosStore((state) => state.removeFromCart);
+  const updateCartItemQuantity = usePosStore((state) => state.updateCartItemQuantity);
+  const clearCart = usePosStore((state) => state.clearCart);
+  const createSale = usePosStore((state) => state.createSale);
+  // Don't use selector for createOrder - get it directly when needed
+  const currency = usePosStore((state) => state.currency);
+  const isFullScreen = usePosStore((state) => state.isFullScreen);
+  const toggleFullScreen = usePosStore((state) => state.toggleFullScreen);
+  const setOrderType = usePosStore((state) => state.setOrderType);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [discount, setDiscount] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [productImages, setProductImages] = useState<Record<string, string>>({});
+  const [productImages, setProductImages] = useState<Record<string, string>>(
+    {}
+  );
   const [cartImages, setCartImages] = useState<Record<string, string>>({});
+  const [orderType, setOrderTypeLocal] = useState<
+    "dine-in" | "takeaway" | "delivery"
+  >("takeaway");
+  const [selectedTable, setSelectedTable] = useState<string | null>(null);
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryPhone, setDeliveryPhone] = useState("");
 
   // Load product images
   useEffect(() => {
@@ -64,7 +81,10 @@ export default function Billing() {
               imageMap[product.id] = imageUrl;
             }
           } catch (error) {
-            console.error(`Error loading image for product ${product.id}:`, error);
+            console.error(
+              `Error loading image for product ${product.id}:`,
+              error
+            );
           }
         }
       }
@@ -85,7 +105,10 @@ export default function Billing() {
               imageMap[item.product_id] = imageUrl;
             }
           } catch (error) {
-            console.error(`Error loading image for cart item ${item.product_id}:`, error);
+            console.error(
+              `Error loading image for cart item ${item.product_id}:`,
+              error
+            );
           }
         }
       }
@@ -107,6 +130,34 @@ export default function Billing() {
   const tax = subtotal * 0.1; // 10% tax
   const total = subtotal + tax - discount;
 
+  // Helper function to determine station based on product
+  const getProductStation = (product: Product): 'kitchen' | 'bar' | 'none' => {
+    // Check if product has a recipe (usually kitchen items)
+    if (product.has_recipe || product.recipe_id) {
+      return 'kitchen';
+    }
+    
+    // Check category for common patterns
+    const category = product.category?.toLowerCase() || '';
+    if (category.includes('beverage') || category.includes('drink') || 
+        category.includes('bar') || category.includes('cocktail') ||
+        category.includes('wine') || category.includes('beer') ||
+        category.includes('juice') || category.includes('coffee') ||
+        category.includes('tea') || category.includes('soda')) {
+      return 'bar';
+    }
+    
+    if (category.includes('food') || category.includes('meal') ||
+        category.includes('dish') || category.includes('appetizer') ||
+        category.includes('main') || category.includes('dessert') ||
+        category.includes('salad') || category.includes('soup')) {
+      return 'kitchen';
+    }
+    
+    // Default to kitchen for items with recipes, otherwise none
+    return product.has_recipe ? 'kitchen' : 'none';
+  };
+
   const handleAddToCart = async (product: Product) => {
     if (product.stock <= 0) {
       message.warning("Product is out of stock");
@@ -114,6 +165,72 @@ export default function Billing() {
     }
     addToCart(product);
     message.success(`${product.name} added to cart`);
+  };
+
+  const handleSaveDraft = async () => {
+    if (cart.length === 0) {
+      message.warning("Cart is empty");
+      return;
+    }
+
+    // Get current outlet - required for orders
+    const currentOutlet = usePosStore.getState().currentOutlet;
+    if (!currentOutlet) {
+      message.error('Please select an outlet in Settings first');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const orderData = {
+        order_type: orderType,
+        outlet_id: currentOutlet.id, // Required field
+        customer_id: selectedCustomer || undefined,
+        table_id: selectedTable || undefined,
+        table_number: selectedTable ? usePosStore.getState().tables.find(t => t.id === selectedTable)?.number : undefined,
+        items: cart.map((item) => {
+          // Find the product to determine station
+          const product = products.find(p => p.id === item.product_id);
+          const station = product ? getProductStation(product) : 'none';
+          
+          return {
+            product_id: item.product_id,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            price: item.price,
+            total: item.total,
+            status: "pending" as const,
+            station: station as 'kitchen' | 'bar' | 'none',
+          };
+        }),
+        subtotal: subtotal,
+        tax: tax,
+        discount: discount,
+        total_amount: total,
+        payment_method: paymentMethod,
+        status: "pending" as const, // Changed from "draft" to "pending" so it shows in Kitchen/Bar
+        delivery_address:
+          orderType === "delivery" ? deliveryAddress : undefined,
+        delivery_phone: orderType === "delivery" ? deliveryPhone : undefined,
+      };
+
+      // Get createOrder directly from store to ensure it's available
+      const storeCreateOrder = usePosStore.getState().createOrder;
+      
+      if (storeCreateOrder && typeof storeCreateOrder === 'function') {
+        await storeCreateOrder(orderData);
+        message.success("Draft saved successfully!");
+      } else {
+        console.error('[Billing] createOrder function not available in store');
+        console.error('[Billing] Store state:', Object.keys(usePosStore.getState()));
+        message.error('Error saving draft. Please refresh the page.');
+      }
+    } catch (error) {
+      console.error("Error saving draft:", error);
+      message.error("Error saving draft. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleCheckout = async () => {
@@ -124,21 +241,97 @@ export default function Billing() {
 
     setIsProcessing(true);
     try {
+      // Get current outlet
+      const currentOutlet = usePosStore.getState().currentOutlet;
+      if (!currentOutlet) {
+        message.error('Please select an outlet in Settings first');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Create order first (for Kitchen/Bar displays)
+      const orderData = {
+        order_type: orderType,
+        outlet_id: currentOutlet.id, // Required field
+        customer_id: selectedCustomer || undefined,
+        table_id: selectedTable || undefined,
+        table_number: selectedTable ? usePosStore.getState().tables.find(t => t.id === selectedTable)?.number : undefined,
+        items: cart.map((item) => {
+          // Find the product to determine station
+          const product = products.find(p => p.id === item.product_id);
+          const station = product ? getProductStation(product) : 'none';
+          
+          return {
+            product_id: item.product_id,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            price: item.price,
+            total: item.total,
+            status: "pending" as const,
+            station: station as 'kitchen' | 'bar' | 'none',
+          };
+        }),
+        subtotal: subtotal,
+        tax: tax,
+        discount: discount,
+        total_amount: total,
+        payment_method: paymentMethod,
+        status: "pending" as const, // Order status for Kitchen/Bar
+        delivery_address: orderType === "delivery" ? deliveryAddress : undefined,
+        delivery_phone: orderType === "delivery" ? deliveryPhone : undefined,
+      };
+
+      // Create order for Kitchen/Bar tracking
+      // Use axios directly as fallback if store function is not available
+      try {
+        const storeState = usePosStore.getState();
+        const storeCreateOrder = storeState?.createOrder;
+        
+        if (storeCreateOrder && typeof storeCreateOrder === 'function') {
+          console.log('[Billing] Using store createOrder function');
+          await storeCreateOrder(orderData);
+          console.log('[Billing] Order created for Kitchen/Bar:', orderData);
+        } else {
+          // Fallback: create order directly via API
+          console.warn('[Billing] createOrder not available in store, using direct API call');
+          const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/orders`, orderData);
+          console.log('[Billing] Order created via direct API:', response.data);
+          
+          // Update store orders if loadOrders is available
+          const loadOrders = storeState?.loadOrders;
+          if (loadOrders && typeof loadOrders === 'function') {
+            await loadOrders();
+          }
+        }
+      } catch (error: any) {
+        console.error('[Billing] Error creating order:', error);
+        const errorMessage = error.response?.data?.error || error.message || 'Error creating order';
+        throw new Error(errorMessage);
+      }
+
+      // Also create sale for accounting
       const sale = {
         customer_id: selectedCustomer || null,
         payment_method: paymentMethod,
         discount: discount,
         tax: tax,
+        sale_type: orderType,
       };
 
       await createSale(sale);
       message.success("Sale completed successfully!");
+      
+      // Clear form
       setSelectedCustomer(null);
       setDiscount(0);
       setPaymentMethod("cash");
+      setOrderTypeLocal("takeaway");
+      setSelectedTable(null);
+      setDeliveryAddress("");
+      setDeliveryPhone("");
     } catch (error) {
-      console.error("Error creating sale:", error);
-      message.error("Error creating sale. Please try again.");
+      console.error("Error during checkout:", error);
+      message.error("Error during checkout. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -149,7 +342,7 @@ export default function Billing() {
       title: "Product",
       key: "product",
       render: (_: any, record: CartItem) => (
-        <Space >
+        <Space>
           {cartImages[record.product_id] ? (
             <Image
               width={50}
@@ -207,7 +400,13 @@ export default function Billing() {
                 updateCartItemQuantity(record.product_id, record.quantity - 1)
               }
             />
-            <span style={{ minWidth: 30, textAlign: 'center', display: 'inline-block' }}>
+          <span
+            style={{
+              minWidth: 30,
+              textAlign: "center",
+              display: "inline-block",
+            }}
+          >
               {record.quantity}
             </span>
             <Button
@@ -245,14 +444,69 @@ export default function Billing() {
     },
   ];
 
+  useEffect(() => {
+    if (setOrderType) {
+      setOrderType(orderType);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderType]);
+
   return (
-    <div>
+    <div
+      style={
+        isFullScreen
+          ? {
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 9999,
+              background: "#fff",
+              padding: "16px",
+            }
+          : {}
+      }
+    >
       <Row gutter={[16, 16]}>
         {/* Products Section */}
         <Col xs={24} lg={14}>
           <Card
-            title="Products"
+            title={
+              <Space>
+                <span>Products</span>
+                <Button
+                  type="text"
+                  icon={
+                    isFullScreen ? (
+                      <FullscreenExitOutlined />
+                    ) : (
+                      <FullscreenOutlined />
+                    )
+                  }
+                  onClick={toggleFullScreen}
+                  size="small"
+                />
+              </Space>
+            }
             extra={
+              <Space>
+                <Select
+                  value={orderType}
+                  onChange={(value) => setOrderTypeLocal(value)}
+                  style={{ width: 120 }}
+                  size="large"
+                >
+                  <Option value="dine-in">
+                    <HomeOutlined /> Dine-in
+                  </Option>
+                  <Option value="takeaway">
+                    <ShopOutlined /> Takeaway
+                  </Option>
+                  <Option value="delivery">
+                    <CarOutlined /> Delivery
+                  </Option>
+                </Select>
               <Input
                 placeholder="Search products or scan barcode..."
                 prefix={<SearchOutlined />}
@@ -262,6 +516,7 @@ export default function Billing() {
                 allowClear
                 size="large"
               />
+              </Space>
             }
             style={{ borderRadius: 12 }}
           >
@@ -439,6 +694,43 @@ export default function Billing() {
                 </Row>
               </Space>
 
+              {orderType === "dine-in" && (
+                <>
+                  <Text strong>Select Table:</Text>
+                  <Select
+                    placeholder="Select Table"
+                    style={{ width: "100%" }}
+                    value={selectedTable}
+                    onChange={setSelectedTable}
+                    size="large"
+                  >
+                    <Option value={null}>No Table</Option>
+                    {/* Tables will be loaded from store */}
+                  </Select>
+                </>
+              )}
+
+              {orderType === "delivery" && (
+                <>
+                  <Text strong>Delivery Address:</Text>
+                  <Input
+                    placeholder="Enter delivery address"
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    size="large"
+                    style={{ marginBottom: 8 }}
+                  />
+                  <Text strong>Delivery Phone:</Text>
+                  <Input
+                    placeholder="Enter delivery phone"
+                    value={deliveryPhone}
+                    onChange={(e) => setDeliveryPhone(e.target.value)}
+                    size="large"
+                    style={{ marginBottom: 8 }}
+                  />
+                </>
+              )}
+
               <Select
                 placeholder="Payment Method"
                 style={{ width: "100%" }}
@@ -452,6 +744,22 @@ export default function Billing() {
                 <Option value="other">Other</Option>
               </Select>
 
+              <Space
+                direction="vertical"
+                style={{ width: "100%" }}
+                size="small"
+              >
+                <Button
+                  type="default"
+                  icon={<SaveOutlined />}
+                  block
+                  size="large"
+                  onClick={handleSaveDraft}
+                  disabled={cart.length === 0 || isProcessing}
+                  loading={isProcessing}
+                >
+                  Save Draft
+                </Button>
               <Button
                 type="primary"
                 icon={<CheckCircleOutlined />}
@@ -464,6 +772,7 @@ export default function Billing() {
               >
                 Checkout
               </Button>
+              </Space>
 
               {cart.length > 0 && (
                 <Button

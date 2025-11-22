@@ -2,8 +2,17 @@ import axios from 'axios';
 import db from './database';
 
 const getApiUrl = (): string => {
-  const envUrl = (import.meta as any).env?.VITE_API_URL;
-  return localStorage.getItem('apiUrl') || envUrl || 'http://localhost:3000/api';
+  try {
+    const envUrl = import.meta.env.VITE_API_URL;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const stored = localStorage.getItem('apiUrl');
+      if (stored) return stored;
+    }
+    return envUrl || 'http://localhost:3000/api';
+  } catch (error) {
+    console.warn('Error getting API URL:', error);
+    return 'http://localhost:3000/api';
+  }
 };
 
 interface SyncQueueItem {
@@ -21,9 +30,13 @@ class SyncService {
   private syncInterval: NodeJS.Timeout | null;
 
   constructor() {
-    this.isOnline = navigator.onLine;
+    this.isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
     this.syncInterval = null;
-    this.setupEventListeners();
+    try {
+      this.setupEventListeners();
+    } catch (error) {
+      console.warn('Error setting up sync service listeners:', error);
+    }
   }
 
   private setupEventListeners(): void {
