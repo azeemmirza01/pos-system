@@ -20,10 +20,13 @@ import {
 import db from '../services/database';
 import { format } from 'date-fns';
 import type { Sale } from '../types';
+import usePosStore from '../stores/usePosStore';
+import { formatCurrency } from '../utils/currency';
 
 const { Title } = Typography;
 
 export default function Invoices() {
+  const { currency } = usePosStore();
   const [sales, setSales] = useState<Sale[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
@@ -103,7 +106,7 @@ export default function Invoices() {
       key: 'total_amount',
       render: (amount: number) => (
         <span style={{ fontWeight: 'bold', color: '#1890ff' }}>
-          ${amount?.toFixed(2) || '0.00'}
+          {formatCurrency(amount || 0, currency)}
         </span>
       ),
       sorter: (a: Sale, b: Sale) => (a.total_amount || 0) - (b.total_amount || 0),
@@ -147,13 +150,10 @@ export default function Invoices() {
   return (
     <div>
       <Card
-        style={{ marginBottom: 16, borderRadius: 6 }}
+        style={{ marginBottom: 16, borderRadius: 12 }}
         bodyStyle={{ padding: '16px 24px' }}
       >
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Title level={2} style={{ margin: 0 }}>
-            Invoices
-          </Title>
           <Input
             placeholder="Search invoices..."
             prefix={<SearchOutlined />}
@@ -166,7 +166,7 @@ export default function Invoices() {
         </Space>
       </Card>
 
-      <Card style={{ borderRadius: 6 }}>
+      <Card style={{ borderRadius: 12 }}>
         <Table
           dataSource={filteredSales}
           columns={columns}
@@ -212,17 +212,17 @@ export default function Invoices() {
                 <Tag color="blue">{selectedSale.payment_method?.toUpperCase() || 'N/A'}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Subtotal">
-                ${((selectedSale.total_amount || 0) - (selectedSale.tax || 0)).toFixed(2)}
+                {formatCurrency((selectedSale.total_amount || 0) - (selectedSale.tax || 0), currency)}
               </Descriptions.Item>
               <Descriptions.Item label="Tax">
-                ${(selectedSale.tax || 0).toFixed(2)}
+                {formatCurrency(selectedSale.tax || 0, currency)}
               </Descriptions.Item>
               <Descriptions.Item label="Discount">
-                ${(selectedSale.discount || 0).toFixed(2)}
+                {formatCurrency(selectedSale.discount || 0, currency)}
               </Descriptions.Item>
               <Descriptions.Item label="Total Amount">
                 <span style={{ fontSize: 18, fontWeight: 'bold', color: '#1890ff' }}>
-                  ${(selectedSale.total_amount || 0).toFixed(2)}
+                  {formatCurrency(selectedSale.total_amount || 0, currency)}
                 </span>
               </Descriptions.Item>
             </Descriptions>
@@ -239,13 +239,13 @@ export default function Invoices() {
                       title: 'Price',
                       dataIndex: 'price',
                       key: 'price',
-                      render: (price: number) => `$${price.toFixed(2)}`,
+                      render: (price: number) => formatCurrency(price, currency),
                     },
                     {
                       title: 'Total',
                       dataIndex: 'total',
                       key: 'total',
-                      render: (total: number) => `$${total.toFixed(2)}`,
+                      render: (total: number) => formatCurrency(total, currency),
                     },
                   ]}
                   pagination={false}

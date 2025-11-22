@@ -27,8 +27,9 @@ import {
 import usePosStore from "../stores/usePosStore";
 import type { Product, CartItem } from "../types";
 import imageService from "../services/imageService";
+import { formatCurrency, getCurrencySymbol } from "../utils/currency";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { Option } = Select;
 
 export default function Billing() {
@@ -41,6 +42,7 @@ export default function Billing() {
     updateCartItemQuantity,
     clearCart,
     createSale,
+    currency,
   } = usePosStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
@@ -147,7 +149,7 @@ export default function Billing() {
       title: "Product",
       key: "product",
       render: (_: any, record: CartItem) => (
-        <Space direction="vertical">
+        <Space >
           {cartImages[record.product_id] ? (
             <Image
               width={50}
@@ -178,7 +180,7 @@ export default function Billing() {
             <Text strong>{record.product_name}</Text>
             <br />
             <Text type="secondary" style={{ fontSize: 12 }}>
-              ${record.price.toFixed(2)} each
+              {formatCurrency(record.price, currency)} each
             </Text>
           </div>
         </Space>
@@ -224,7 +226,7 @@ export default function Billing() {
       width: 100,
       render: (_: any, record: CartItem) => (
         <Text strong style={{ color: "#1890ff" }}>
-          ${record.total.toFixed(2)}
+          {formatCurrency(record.total, currency)}
         </Text>
       ),
     },
@@ -245,10 +247,6 @@ export default function Billing() {
 
   return (
     <div>
-      <Title level={2} style={{ marginBottom: 24 }}>
-        Billing
-      </Title>
-
       <Row gutter={[16, 16]}>
         {/* Products Section */}
         <Col xs={24} lg={14}>
@@ -265,7 +263,7 @@ export default function Billing() {
                 size="large"
               />
             }
-            style={{ borderRadius: 6 }}
+            style={{ borderRadius: 12 }}
           >
             {filteredProducts.length === 0 ? (
               <Empty description="No products found" />
@@ -339,7 +337,7 @@ export default function Billing() {
                         </Text>
                         <br />
                         <Text strong style={{ color: "#1890ff", fontSize: 14 }}>
-                          ${product.price.toFixed(2)}
+                          {formatCurrency(product.price, currency)}
                         </Text>
                         <br />
                         <Text type="secondary" style={{ fontSize: 10 }}>
@@ -363,10 +361,10 @@ export default function Billing() {
                 <span>Cart ({cart.length})</span>
               </Space>
             }
-            style={{ borderRadius: 6, position: "sticky", top: 24 }}
+            style={{ borderRadius: 12, position: "sticky", top: 24 }}
           >
             <Space direction="vertical" style={{ width: "100%" }} size="middle">
-              <Select
+              {/* <Select
                 placeholder="Select Customer (Optional)"
                 style={{ width: "100%" }}
                 value={selectedCustomer}
@@ -388,7 +386,7 @@ export default function Billing() {
                 ))}
               </Select>
 
-              <Divider style={{ margin: "12px 0" }} />
+              <Divider style={{ margin: "12px 0" }} /> */}
 
               {cart.length === 0 ? (
                 <Empty description="Cart is empty" />
@@ -403,7 +401,7 @@ export default function Billing() {
                 />
               )}
 
-              <Divider style={{ margin: "12px 0" }} />
+              {/* <Divider style={{ margin: "12px 0" }} /> */}
 
               <Space
                 direction="vertical"
@@ -412,11 +410,11 @@ export default function Billing() {
               >
                 <Row justify="space-between">
                   <Text>Subtotal:</Text>
-                  <Text>${subtotal.toFixed(2)}</Text>
+                  <Text>{formatCurrency(subtotal, currency)}</Text>
                 </Row>
                 <Row justify="space-between">
                   <Text>Tax (10%):</Text>
-                  <Text>${tax.toFixed(2)}</Text>
+                  <Text>{formatCurrency(tax, currency)}</Text>
                 </Row>
                 <Row justify="space-between">
                   <Text>Discount:</Text>
@@ -425,7 +423,7 @@ export default function Billing() {
                     max={subtotal}
                     value={discount}
                     onChange={(value) => setDiscount(value || 0)}
-                    prefix="$"
+                    prefix={getCurrencySymbol(currency)}
                     style={{ width: 120 }}
                     size="large"
                   />
@@ -436,7 +434,7 @@ export default function Billing() {
                     Total:
                   </Text>
                   <Text strong style={{ fontSize: 18, color: "#1890ff" }}>
-                    ${total.toFixed(2)}
+                    {formatCurrency(total, currency)}
                   </Text>
                 </Row>
               </Space>

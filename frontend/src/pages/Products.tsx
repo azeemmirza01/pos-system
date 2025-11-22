@@ -6,7 +6,6 @@ import {
   Modal,
   Form,
   InputNumber,
-  Typography,
   Space,
   Tag,
   Image,
@@ -24,12 +23,12 @@ import {
 import usePosStore from '../stores/usePosStore';
 import type { Product } from '../types';
 import imageService from '../services/imageService';
+import { formatCurrency, getCurrencySymbol } from '../utils/currency';
 
-const { Title } = Typography;
 const { TextArea } = Input;
 
 export default function Products() {
-  const { products, addProduct, updateProduct, deleteProduct, loadProducts } = usePosStore();
+  const { products, addProduct, updateProduct, deleteProduct, loadProducts, currency } = usePosStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -37,11 +36,77 @@ export default function Products() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [productsLoading, setProductsLoading] = useState(true);
   const [productImages, setProductImages] = useState<Record<string, string>>({});
 
+  // Sample cafe products
+  const sampleCafeProducts = [
+    { name: 'Espresso', price: 2.50, description: 'Strong Italian coffee', category: 'Beverages', stock: 100 },
+    { name: 'Cappuccino', price: 3.50, description: 'Espresso with steamed milk foam', category: 'Beverages', stock: 100 },
+    { name: 'Latte', price: 4.00, description: 'Espresso with steamed milk', category: 'Beverages', stock: 100 },
+    { name: 'Americano', price: 3.00, description: 'Espresso with hot water', category: 'Beverages', stock: 100 },
+    { name: 'Mocha', price: 4.50, description: 'Chocolate espresso drink', category: 'Beverages', stock: 100 },
+    { name: 'Croissant', price: 2.75, description: 'Buttery French pastry', category: 'Pastries', stock: 50 },
+    { name: 'Blueberry Muffin', price: 3.25, description: 'Fresh baked muffin', category: 'Pastries', stock: 50 },
+    { name: 'Chocolate Chip Cookie', price: 2.00, description: 'Homemade cookie', category: 'Pastries', stock: 75 },
+    { name: 'Bagel with Cream Cheese', price: 3.50, description: 'Fresh bagel with cream cheese', category: 'Food', stock: 40 },
+    { name: 'Avocado Toast', price: 6.50, description: 'Sourdough toast with avocado', category: 'Food', stock: 30 },
+    { name: 'Caesar Salad', price: 8.50, description: 'Fresh romaine with caesar dressing', category: 'Food', stock: 25 },
+    { name: 'Chicken Panini', price: 9.50, description: 'Grilled chicken panini', category: 'Food', stock: 20 },
+    { name: 'Iced Coffee', price: 3.75, description: 'Cold brew coffee', category: 'Beverages', stock: 80 },
+    { name: 'Green Tea', price: 2.50, description: 'Premium green tea', category: 'Beverages', stock: 100 },
+    { name: 'Hot Chocolate', price: 3.25, description: 'Rich hot chocolate', category: 'Beverages', stock: 60 },
+  ];
+
+  const addSampleProducts = async () => {
+    try {
+      setLoading(true);
+      let added = 0;
+      for (const product of sampleCafeProducts) {
+        // Check if product already exists
+        const exists = products.some(p => p.name.toLowerCase() === product.name.toLowerCase());
+        if (!exists) {
+          await addProduct(product);
+          added++;
+        }
+      }
+      if (added > 0) {
+        message.success(`Added ${added} new cafe products!`);
+        // Reload products to refresh the list
+        setProductsLoading(true);
+        await loadProducts();
+        setProductsLoading(false);
+      } else {
+        message.info('All sample products already exist!');
+      }
+    } catch (error) {
+      console.error('Error adding sample products:', error);
+      message.error('Failed to add sample products');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    loadProducts();
+    const fetchProducts = async () => {
+      try {
+        setProductsLoading(true);
+        await loadProducts();
+        console.log('Products loaded:', products.length);
+      } catch (error) {
+        console.error('Error loading products:', error);
+        message.error('Failed to load products');
+      } finally {
+        setProductsLoading(false);
+      }
+    };
+    fetchProducts();
   }, [loadProducts]);
+
+  // Debug: Log products when they change
+  useEffect(() => {
+    console.log('Products updated:', products.length, products);
+  }, [products]);
 
   // Load product images for table
   useEffect(() => {
@@ -65,10 +130,15 @@ export default function Products() {
   }, [products]);
 
   const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.barcode?.includes(searchQuery) ||
-      product.category?.toLowerCase().includes(searchQuery.toLowerCase())
+    (product) => {
+      if (!searchQuery) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        product.name?.toLowerCase().includes(query) ||
+        product.barcode?.toLowerCase().includes(query) ||
+        product.category?.toLowerCase().includes(query)
+      );
+    }
   );
 
   const loadImagePreview = async (filename: string) => {
@@ -208,7 +278,7 @@ export default function Products() {
       dataIndex: 'price',
       key: 'price',
       sorter: (a: Product, b: Product) => a.price - b.price,
-      render: (price: number) => `$${price.toFixed(2)}`,
+      render: (price: number) => formatCurrency(price, currency),
     },
     {
       title: 'Stock',
@@ -260,13 +330,10 @@ export default function Products() {
   return (
     <div>
       <Card
-        style={{ marginBottom: 16, borderRadius: 6 }}
+        style={{ marginBottom: 16, borderRadius: 12 }}
         bodyStyle={{ padding: '16px 24px' }}
       >
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Title level={2} style={{ margin: 0 }}>
-            Products
-          </Title>
           <Space>
             <Input
               placeholder="Search products..."
@@ -277,6 +344,13 @@ export default function Products() {
               allowClear
               size="large"
             />
+            <Button
+              onClick={addSampleProducts}
+              loading={loading}
+              size="large"
+            >
+              Add Sample Cafe Products
+            </Button>
             <Button
               type="primary"
               icon={<PlusCircleOutlined />}
@@ -289,15 +363,36 @@ export default function Products() {
         </Space>
       </Card>
 
-      <Card style={{ borderRadius: 6 }}>
+      <Card style={{ borderRadius: 12 }}>
+        {!productsLoading && products.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <p style={{ fontSize: 16, color: '#666', marginBottom: 16 }}>
+              No products found. Click "Add Sample Cafe Products" to get started!
+            </p>
+            <Button
+              type="primary"
+              size="large"
+              onClick={addSampleProducts}
+              loading={loading}
+            >
+              Add Sample Cafe Products
+            </Button>
+          </div>
+        )}
         <Table
           dataSource={filteredProducts}
           columns={columns}
           rowKey="id"
+          loading={productsLoading}
           pagination={{
             pageSize: 10,
             showSizeChanger: true,
             showTotal: (total) => `Total ${total} products`,
+          }}
+          locale={{
+            emptyText: searchQuery 
+              ? `No products match "${searchQuery}"`
+              : 'No products found'
           }}
         />
       </Card>
@@ -388,7 +483,7 @@ export default function Products() {
             <InputNumber
               placeholder="Enter price"
               style={{ width: '100%' }}
-              prefix="$"
+              prefix={getCurrencySymbol(currency)}
               min={0}
               step={0.01}
               size="large"

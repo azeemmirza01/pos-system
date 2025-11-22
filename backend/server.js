@@ -35,7 +35,18 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'POS System API is running' });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+});
+
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Please free the port or use a different port.`);
+    console.error('You can kill the process using: lsof -ti:3000 | xargs kill -9');
+    process.exit(1);
+  } else {
+    console.error('Server error:', error);
+    process.exit(1);
+  }
 });
 

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import db from '../services/database';
 import syncService from '../services/sync';
 import type { PosStore, Product, Customer, SaleData, SyncStatus } from '../types';
+import type { Currency } from '../utils/currency';
 
 const usePosStore = create<PosStore>((set, get) => ({
   // State
@@ -11,10 +12,21 @@ const usePosStore = create<PosStore>((set, get) => ({
   currentSale: null,
   isOnline: navigator.onLine,
   syncStatus: 'idle' as SyncStatus,
+  currency: (localStorage.getItem('currency') as Currency) || 'USD',
 
   // Initialize
   initialize: async () => {
     try {
+      // Load currency preference, default to USD if not set
+      const savedCurrency = localStorage.getItem('currency') as Currency;
+      if (savedCurrency && (savedCurrency === 'USD' || savedCurrency === 'EUR')) {
+        set({ currency: savedCurrency });
+      } else {
+        // Set default to USD if no valid currency is saved
+        localStorage.setItem('currency', 'USD');
+        set({ currency: 'USD' });
+      }
+      
       // Start auto sync
       syncService.startAutoSync(30000);
       
@@ -35,6 +47,12 @@ const usePosStore = create<PosStore>((set, get) => ({
     } catch (error) {
       console.error('Error initializing POS store:', error);
     }
+  },
+
+  // Currency
+  setCurrency: (currency: Currency) => {
+    localStorage.setItem('currency', currency);
+    set({ currency });
   },
 
   // Products

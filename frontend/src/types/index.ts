@@ -76,6 +76,7 @@ export interface PosStore {
   currentSale: Sale | null;
   isOnline: boolean;
   syncStatus: SyncStatus;
+  currency: 'USD' | 'EUR';
   initialize: () => Promise<void>;
   loadProducts: () => Promise<void>;
   addProduct: (product: Omit<Product, 'id' | 'synced' | 'created_at' | 'updated_at'>) => Promise<string>;
@@ -91,5 +92,6 @@ export interface PosStore {
   clearCart: () => void;
   createSale: (saleData: Omit<SaleData, 'items' | 'total_amount'>) => Promise<{ id: string; invoice_number: string }>;
   sync: () => Promise<void>;
+  setCurrency: (currency: 'USD' | 'EUR') => void;
 }
 

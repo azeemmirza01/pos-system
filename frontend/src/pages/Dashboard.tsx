@@ -12,11 +12,12 @@ import { useNavigate } from 'react-router-dom';
 import usePosStore from '../stores/usePosStore';
 import db from '../services/database';
 import type { Sale } from '../types';
+import { getCurrencySymbol } from '../utils/currency';
 
 const { Title } = Typography;
 
 export default function Dashboard() {
-  const { products, customers } = usePosStore();
+  const { products, customers, currency } = usePosStore();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalSales: 0,
@@ -70,11 +71,13 @@ export default function Dashboard() {
     }
   };
 
+  const currencySymbol = getCurrencySymbol(currency);
+
   const statCards = [
     {
       title: 'Today Sales',
       value: stats.todaySales,
-      prefix: '$',
+      prefix: currencySymbol,
       precision: 2,
       icon: <MoneyCollectOutlined style={{ fontSize: 32, color: '#52c41a' }} />,
       color: '#52c41a',
@@ -92,7 +95,7 @@ export default function Dashboard() {
     {
       title: 'Total Sales',
       value: stats.totalSales,
-      prefix: '$',
+      prefix: currencySymbol,
       precision: 2,
       icon: <ShoppingCartOutlined style={{ fontSize: 32, color: '#1890ff' }} />,
       color: '#1890ff',
@@ -113,19 +116,16 @@ export default function Dashboard() {
 
   return (
     <div>
-      <Title level={2} style={{ marginBottom: 24 }}>
-        Dashboard
-      </Title>
-
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         {statCards.map((stat, index) => (
           <Col xs={24} sm={12} lg={6} key={index}>
             <Card
               hoverable
               style={{
-                borderRadius: 6,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                border: `1px solid ${stat.color}20`,
+                borderRadius: 12,
+                boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                border: `1px solid ${stat.color}30`,
+                transition: 'all 0.3s ease',
               }}
             >
               <Statistic
@@ -145,10 +145,11 @@ export default function Dashboard() {
       </Row>
 
       <Card
-        title="Quick Actions"
+        title={<span style={{ fontWeight: 600, fontSize: 16 }}>Quick Actions</span>}
         style={{
-          borderRadius: 6,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          borderRadius: 12,
+          boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+          marginTop: 24,
         }}
       >
         <Row gutter={[16, 16]}>
@@ -157,18 +158,19 @@ export default function Dashboard() {
               hoverable
               style={{
                 textAlign: 'center',
-                borderRadius: 6,
-                border: '2px solid #1890ff',
-                transition: 'all 0.3s',
+                borderRadius: 12,
+                border: '2px solid #0066cc',
+                transition: 'all 0.3s ease',
+                cursor: 'pointer',
               }}
-              bodyStyle={{ padding: 24 }}
+              bodyStyle={{ padding: 32 }}
               onClick={() => navigate('/billing')}
             >
-              <ShoppingCartOutlined style={{ fontSize: 48, color: '#1890ff', marginBottom: 16 }} />
-              <Title level={4} style={{ margin: 0 }}>
+              <ShoppingCartOutlined style={{ fontSize: 56, color: '#0052a3', marginBottom: 16 }} />
+              <Title level={4} style={{ margin: 0, fontWeight: 600, color: '#1a1a1a' }}>
                 New Sale
               </Title>
-              <p style={{ color: '#666', marginTop: 8, marginBottom: 0 }}>
+              <p style={{ color: '#666', marginTop: 12, marginBottom: 0, fontSize: 14 }}>
                 Start a new transaction
               </p>
             </Card>
@@ -178,18 +180,19 @@ export default function Dashboard() {
               hoverable
               style={{
                 textAlign: 'center',
-                borderRadius: 6,
+                borderRadius: 12,
                 border: '2px solid #722ed1',
-                transition: 'all 0.3s',
+                transition: 'all 0.3s ease',
+                cursor: 'pointer',
               }}
-              bodyStyle={{ padding: 24 }}
+              bodyStyle={{ padding: 32 }}
               onClick={() => navigate('/products')}
             >
-              <ShopOutlined style={{ fontSize: 48, color: '#722ed1', marginBottom: 16 }} />
-              <Title level={4} style={{ margin: 0 }}>
+              <ShopOutlined style={{ fontSize: 56, color: '#722ed1', marginBottom: 16 }} />
+              <Title level={4} style={{ margin: 0, fontWeight: 600, color: '#1a1a1a' }}>
                 Manage Products
               </Title>
-              <p style={{ color: '#666', marginTop: 8, marginBottom: 0 }}>
+              <p style={{ color: '#666', marginTop: 12, marginBottom: 0, fontSize: 14 }}>
                 Add, edit, or remove products
               </p>
             </Card>
@@ -199,18 +202,19 @@ export default function Dashboard() {
               hoverable
               style={{
                 textAlign: 'center',
-                borderRadius: 6,
+                borderRadius: 12,
                 border: '2px solid #fa8c16',
-                transition: 'all 0.3s',
+                transition: 'all 0.3s ease',
+                cursor: 'pointer',
               }}
-              bodyStyle={{ padding: 24 }}
+              bodyStyle={{ padding: 32 }}
               onClick={() => navigate('/customers')}
             >
-              <TeamOutlined style={{ fontSize: 48, color: '#fa8c16', marginBottom: 16 }} />
-              <Title level={4} style={{ margin: 0 }}>
+              <TeamOutlined style={{ fontSize: 56, color: '#fa8c16', marginBottom: 16 }} />
+              <Title level={4} style={{ margin: 0, fontWeight: 600, color: '#1a1a1a' }}>
                 Manage Customers
               </Title>
-              <p style={{ color: '#666', marginTop: 8, marginBottom: 0 }}>
+              <p style={{ color: '#666', marginTop: 12, marginBottom: 0, fontSize: 14 }}>
                 View and manage customer data
               </p>
             </Card>

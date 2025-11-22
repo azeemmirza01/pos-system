@@ -21,7 +21,7 @@ import {
 } from '@ant-design/icons';
 import usePosStore from '../stores/usePosStore';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 export default function Settings() {
   const { isOnline, sync, syncStatus } = usePosStore();
@@ -59,10 +59,6 @@ export default function Settings() {
 
   return (
     <div>
-      <Title level={2} style={{ marginBottom: 24 }}>
-        Settings
-      </Title>
-
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={12}>
           <Card
@@ -72,7 +68,7 @@ export default function Settings() {
                 <span>Sync Settings</span>
               </Space>
             }
-            style={{ borderRadius: 6 }}
+            style={{ borderRadius: 12 }}
           >
             <Space direction="vertical" style={{ width: '100%' }} size="large">
               <div>
@@ -116,7 +112,7 @@ export default function Settings() {
                 <span>API Configuration</span>
               </Space>
             }
-            style={{ borderRadius: 6 }}
+            style={{ borderRadius: 12 }}
           >
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
               <div>

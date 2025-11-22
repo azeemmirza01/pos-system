@@ -5,7 +5,6 @@ import {
   Input,
   Modal,
   Form,
-  Typography,
   Space,
   message,
   Popconfirm,
@@ -24,7 +23,6 @@ import {
 import usePosStore from '../stores/usePosStore';
 import type { Customer } from '../types';
 
-const { Title } = Typography;
 
 export default function Customers() {
   const { customers, addCustomer, updateCustomer, deleteCustomer, loadCustomers } = usePosStore();
@@ -178,13 +176,10 @@ export default function Customers() {
   return (
     <div>
       <Card
-        style={{ marginBottom: 16, borderRadius: 6 }}
+        style={{ marginBottom: 16, borderRadius: 12 }}
         bodyStyle={{ padding: '16px 24px' }}
       >
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Title level={2} style={{ margin: 0 }}>
-            Customers
-          </Title>
           <Space>
             <Input
               placeholder="Search customers..."
@@ -207,7 +202,7 @@ export default function Customers() {
         </Space>
       </Card>
 
-      <Card style={{ borderRadius: 6 }}>
+      <Card style={{ borderRadius: 12 }}>
         <Table
           dataSource={filteredCustomers}
           columns={columns}

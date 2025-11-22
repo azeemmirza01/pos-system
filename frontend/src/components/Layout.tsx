@@ -8,6 +8,7 @@ import {
   Space,
   Button,
   theme,
+  Select,
 } from 'antd';
 import {
   DashboardOutlined,
@@ -19,10 +20,11 @@ import {
   SettingOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  GlobalOutlined,
+  WifiOutlined,
 } from '@ant-design/icons';
 import usePosStore from '../stores/usePosStore';
 import type { MenuProps } from 'antd';
+import { type Currency } from '../utils/currency';
 
 const { Header, Sider, Content } = AntLayout;
 const { Title } = Typography;
@@ -71,7 +73,7 @@ export default function Layout() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { isOnline, initialize, cart } = usePosStore();
+  const { isOnline, initialize, cart, currency, setCurrency } = usePosStore();
   const {
     token: { colorBgContainer },
   } = theme.useToken();
@@ -85,6 +87,22 @@ export default function Layout() {
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
   };
+
+  // Get page title based on current route
+  const getPageTitle = () => {
+    const titles: Record<string, { title: string; subtitle: string }> = {
+      '/dashboard': { title: 'Dashboard', subtitle: 'Overview of your business performance' },
+      '/billing': { title: 'Billing', subtitle: 'Process sales and manage transactions' },
+      '/products': { title: 'Products', subtitle: 'Manage your product catalog' },
+      '/customers': { title: 'Customers', subtitle: 'Manage customer information and relationships' },
+      '/invoices': { title: 'Invoices', subtitle: 'View and manage sales invoices' },
+      '/reports': { title: 'Reports', subtitle: 'Analyze sales performance and business insights' },
+      '/settings': { title: 'Settings', subtitle: 'Configure system settings and preferences' },
+    };
+    return titles[location.pathname] || { title: 'POS System', subtitle: '' };
+  };
+
+  const pageInfo = getPageTitle();
 
   return (
     <AntLayout style={{ minHeight: '100vh' }}>
@@ -109,18 +127,18 @@ export default function Layout() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: collapsed ? 'center' : 'flex-start',
-            color: '#000000d9',
+            color: '#0066cc',
             padding: collapsed ? 0 : '0 16px',
-            borderBottom: '1px solid #f0f0f0',
+            borderBottom: '1px solid #e8e8e8',
           }}
         >
           {!collapsed && (
-            <Title level={4} style={{ color: '#000000d9', margin: 0 }}>
+            <Title level={4} style={{ color: '#0052a3', margin: 0, fontWeight: 600, fontSize: 18 }}>
               POS System
             </Title>
           )}
           {collapsed && (
-            <Title level={4} style={{ color: '#000000d9', margin: 0 }}>
+            <Title level={4} style={{ color: '#0052a3', margin: 0, fontWeight: 600 }}>
               POS
             </Title>
           )}
@@ -138,19 +156,20 @@ export default function Layout() {
             bottom: 16,
             left: 16,
             right: 16,
-            padding: '12px',
-            background: '#f0f0f0',
-            borderRadius: 6,
+            padding: '12px 16px',
+            background: isOnline ? '#e6f7ff' : '#fff1f0',
+            borderRadius: 8,
             display: 'flex',
             alignItems: 'center',
             gap: 8,
             justifyContent: collapsed ? 'center' : 'flex-start',
+            border: `1px solid ${isOnline ? '#91d5ff' : '#ffccc7'}`,
           }}
         >
           <Badge
             status={isOnline ? 'success' : 'error'}
             text={collapsed ? '' : (isOnline ? 'Online' : 'Offline')}
-            style={{ color: '#000000d9' }}
+            style={{ color: isOnline ? '#0052a3' : '#cf1322', fontWeight: 500 }}
           />
         </div>
       </Sider>
@@ -166,19 +185,41 @@ export default function Layout() {
             position: 'sticky',
             top: 0,
             zIndex: 100,
+            borderBottom: '1px solid #e8e8e8',
           }}
         >
-          <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setCollapsed(!collapsed)}
-            style={{
-              fontSize: '16px',
-              width: 64,
-              height: 64,
-            }}
-          />
+          <Space style={{ flex: 1 }}>
+            <Button
+              type="text"
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setCollapsed(!collapsed)}
+              style={{
+                fontSize: '16px',
+                width: 64,
+                height: 64,
+              }}
+            />
+            <div style={{ marginLeft: collapsed ? 0 : 8 }}>
+              <Title level={3} style={{ margin: 0, color: '#1a1a1a', fontWeight: 600, fontSize: 20 }}>
+                {pageInfo.title}
+              </Title>
+              {pageInfo.subtitle && (
+                <p style={{ margin: 0, color: '#666666', fontSize: 12, lineHeight: 1.2 }}>
+                  {pageInfo.subtitle}
+                </p>
+              )}
+            </div>
+          </Space>
           <Space>
+            <Select
+              value={currency}
+              onChange={(value) => setCurrency(value as Currency)}
+              style={{ width: 100 }}
+              size="small"
+            >
+              <Select.Option value="USD">$ USD</Select.Option>
+              <Select.Option value="EUR">€ EUR</Select.Option>
+            </Select>
             <Badge count={cart.length} size="small">
               <Button
                 type="text"
@@ -187,13 +228,13 @@ export default function Layout() {
               />
             </Badge>
             <Space>
-              <GlobalOutlined
+              <WifiOutlined
                 style={{
                   color: isOnline ? '#52c41a' : '#ff4d4f',
-                  fontSize: 16,
+                  fontSize: 18,
                 }}
               />
-              <span style={{ fontSize: 14, color: '#666' }}>
+              <span style={{ fontSize: 14, color: '#666', fontWeight: 500 }}>
                 {isOnline ? 'Online' : 'Offline'}
               </span>
             </Space>
@@ -202,10 +243,9 @@ export default function Layout() {
         <Content
           style={{
             margin: '24px',
-            padding: 24,
+            padding: 0,
             minHeight: 280,
-            background: colorBgContainer,
-            borderRadius: 6,
+            background: 'transparent',
           }}
         >
           <Outlet />

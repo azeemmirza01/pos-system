@@ -4,7 +4,6 @@ import {
   Row,
   Col,
   Statistic,
-  Typography,
   DatePicker,
   Space,
   Table,
@@ -20,11 +19,13 @@ import { startOfDay, endOfDay, subDays } from 'date-fns';
 import type { Sale } from '../types';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
+import usePosStore from '../stores/usePosStore';
+import { getCurrencySymbol, formatCurrency } from '../utils/currency';
 
-const { Title } = Typography;
 const { RangePicker } = DatePicker;
 
 export default function Reports() {
+  const { currency } = usePosStore();
   const [sales, setSales] = useState<Sale[]>([]);
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
     dayjs(subDays(new Date(), 7)),
@@ -113,7 +114,7 @@ export default function Reports() {
       key: 'total',
       render: (total: number) => (
         <span style={{ fontWeight: 'bold', color: '#1890ff' }}>
-          ${total.toFixed(2)}
+          {formatCurrency(total, currency)}
         </span>
       ),
     },
@@ -122,13 +123,10 @@ export default function Reports() {
   return (
     <div>
       <Card
-        style={{ marginBottom: 16, borderRadius: 6 }}
+        style={{ marginBottom: 16, borderRadius: 12 }}
         bodyStyle={{ padding: '16px 24px' }}
       >
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Title level={2} style={{ margin: 0 }}>
-            Reports
-          </Title>
           <RangePicker
             value={dateRange}
             onChange={(dates) => {
@@ -144,11 +142,11 @@ export default function Reports() {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card style={{ borderRadius: 6 }}>
+          <Card style={{ borderRadius: 12 }}>
             <Statistic
               title="Total Revenue"
               value={stats.totalRevenue}
-              prefix="$"
+              prefix={getCurrencySymbol(currency)}
               precision={2}
               valueStyle={{ color: '#3f8600' }}
             />
@@ -158,7 +156,7 @@ export default function Reports() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card style={{ borderRadius: 6 }}>
+          <Card style={{ borderRadius: 12 }}>
             <Statistic
               title="Total Transactions"
               value={stats.totalTransactions}
@@ -170,11 +168,11 @@ export default function Reports() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card style={{ borderRadius: 6 }}>
+          <Card style={{ borderRadius: 12 }}>
             <Statistic
               title="Average Transaction"
               value={stats.averageTransaction}
-              prefix="$"
+              prefix={getCurrencySymbol(currency)}
               precision={2}
               valueStyle={{ color: '#722ed1' }}
             />
@@ -184,11 +182,11 @@ export default function Reports() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card style={{ borderRadius: 6 }}>
+          <Card style={{ borderRadius: 12 }}>
             <Statistic
               title="Today Revenue"
               value={stats.todayRevenue}
-              prefix="$"
+              prefix={getCurrencySymbol(currency)}
               precision={2}
               valueStyle={{ color: '#fa8c16' }}
             />
@@ -199,7 +197,7 @@ export default function Reports() {
         </Col>
       </Row>
 
-      <Card title="Top Products" style={{ borderRadius: 6 }}>
+      <Card title="Top Products" style={{ borderRadius: 12 }}>
         <Table
           dataSource={topProducts}
           columns={columns}

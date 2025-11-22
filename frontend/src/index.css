@@ -9,6 +9,8 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #f5f7fa;
+  color: #1a1a1a;
 }
 
 * {
@@ -20,7 +22,127 @@ body {
   height: 100vh;
 }
 
-/* Ant Design customizations */
+/* Ant Design customizations - Vectron-inspired */
 .ant-layout {
   min-height: 100vh;
+}
+
+.ant-layout-header {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.ant-layout-sider {
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.06);
+  border-right: 1px solid #e8e8e8;
+}
+
+.ant-menu {
+  border-right: none;
+}
+
+.ant-card {
+  transition: all 0.3s ease;
+}
+
+.ant-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.ant-statistic-title {
+  font-weight: 500;
+  color: #666666;
+}
+
+.ant-statistic-content {
+  font-weight: 600;
+}
+
+/* Professional button styles - Vectron style */
+.ant-btn-primary {
+  background: #0052a3;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 82, 163, 0.3);
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.ant-btn-primary:hover {
+  background: #003d7a;
+  box-shadow: 0 4px 12px rgba(0, 82, 163, 0.4);
+  transform: translateY(-1px);
+}
+
+.ant-btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Table enhancements */
+.ant-table-thead > tr > th {
+  background: #fafbfc;
+  font-weight: 600;
+  border-bottom: 2px solid #e8e8e8;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: #f5f7fa;
+}
+
+/* Input focus styles - Vectron style */
+.ant-input:focus,
+.ant-input-focused,
+.ant-select-focused .ant-select-selector {
+  border-color: #0052a3;
+  box-shadow: 0 0 0 2px rgba(0, 82, 163, 0.1);
+}
+
+/* Professional page headers */
+.page-header {
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e8e8e8;
+}
+
+.page-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+/* Vectron-style cards */
+.vectron-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  border: 1px solid #e8e8e8;
+}
+
+.vectron-card:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Professional spacing */
+.section-spacing {
+  margin-bottom: 32px;
+}
+
+/* Vectron-style statistics */
+.vectron-statistic {
+  padding: 20px;
+}
+
+.vectron-statistic .ant-statistic-title {
+  font-size: 14px;
+  color: #666666;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.vectron-statistic .ant-statistic-content {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1a1a1a;
 }
